@@ -244,7 +244,7 @@ body.focused .focusnote{display:block}
 .snd[aria-pressed="false"] .x{display:block}
 .snd.wait .w1,.snd.wait .w2{opacity:.4}
 /* sound menu */
-#sndmenu{position:fixed;z-index:7;min-width:212px;padding:5px;background:var(--panel);border:1px solid var(--edge);border-radius:12px;box-shadow:var(--shadow);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+#sndmenu{position:fixed;z-index:7;min-width:168px;padding:5px;background:var(--panel);border:1px solid var(--edge);border-radius:12px;box-shadow:var(--shadow);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 #sndmenu.pnl{translate:0 -6px;transform-origin:0 0}
 #sndmenu.pnl.on{translate:0 0}
 #sndmenu button{display:flex;align-items:flex-start;gap:9px;width:100%;padding:7px 10px 7px 8px;border:0;background:none;border-radius:8px;
@@ -252,11 +252,14 @@ body.focused .focusnote{display:block}
 #sndmenu button:hover,#sndmenu button:focus-visible{background:var(--hover);outline:none}
 #sndmenu .ck{width:14px;flex:none;color:var(--ink);font-weight:700}
 #sndmenu button[aria-checked="true"] .ck::before{content:"\2713"}
-#sndmenu small{display:block;color:var(--muted);font-size:12.5px}
-/* sonar: a ring grows from a train when the sweep finds it */
-.train .sring{fill:none;stroke-width:1.2;opacity:0;vector-effect:non-scaling-stroke;transform-box:fill-box;transform-origin:center;pointer-events:none}
-.train.sonar .sring{animation:sonar 1.9s cubic-bezier(.2,.7,.2,1)}
-@keyframes sonar{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(5)}}
+/* sonar: a radar over the Loop, one turn per data refresh */
+.radar{opacity:0;transition:opacity .6s ease;pointer-events:none}
+body.sonar .radar{opacity:1}
+.radar circle,.radar .rx{fill:none;stroke:var(--live);stroke-width:1.3px;vector-effect:non-scaling-stroke;opacity:.45}
+.radar .rx{opacity:.25}
+.radar .wedge{fill:var(--live)}
+.radar .beam{stroke:var(--live);stroke-width:2.4px;vector-effect:non-scaling-stroke;opacity:1}
+@media (prefers-reduced-motion:reduce){.radar .sweep{display:none}}
 
 /* ---------- ambient: controls recede after ~10 s without input ---------- */
 .console,.zoom,#fstrip{transition:opacity var(--t-base) ease}
@@ -525,9 +528,9 @@ button{touch-action:manipulation}
 <section id="board" aria-label="Your stations"></section>
 <button id="fstrip" aria-label="Open your stations"></button>
 <div id="sndmenu" class="pnl" role="menu" aria-label="Sound">
-  <button role="menuitemradio" data-m="brown" aria-checked="false"><span class="ck" aria-hidden="true"></span><span>Brown noise<small>A soft, steady hush</small></span></button>
-  <button role="menuitemradio" data-m="water" aria-checked="false"><span class="ck" aria-hidden="true"></span><span>Water<small>Slow swells and the odd bubble</small></span></button>
-  <button role="menuitemradio" data-m="sonar" aria-checked="false"><span class="ck" aria-hidden="true"></span><span>Sonar<small>A ping as the sweep finds each train</small></span></button>
+  <button role="menuitemradio" data-m="brown" aria-checked="false"><span class="ck" aria-hidden="true"></span><span>Brown noise</span></button>
+  <button role="menuitemradio" data-m="water" aria-checked="false"><span class="ck" aria-hidden="true"></span><span>Water</span></button>
+  <button role="menuitemradio" data-m="sonar" aria-checked="false"><span class="ck" aria-hidden="true"></span><span>Sonar</span></button>
   <button role="menuitemradio" data-m="off" aria-checked="false"><span class="ck" aria-hidden="true"></span><span>Off</span></button>
 </div>
 <div id="apanel" class="pnl" role="dialog" aria-label="Service alerts"><div class="ahd"><b>Service alerts</b><span id="ascope"></span><button id="aclose" aria-label="Close alerts">×</button></div><div class="alist" id="alist"></div></div>
@@ -949,8 +952,8 @@ themeBtn.onclick=e=>{if(e)e.stopPropagation();const next=document.documentElemen
    Pick from the speaker menu: brown noise, water, sonar or off (remembered in this browser).
    Browsers block sound until the page is clicked/tapped/keyed once, so it starts on the first interaction.
    One 12 s noise buffer (ends crossfaded, so the loop never clicks) feeds each mode through its own
-   filter and volume; switching crossfades. Sonar pings come from a slow invisible sweep around downtown:
-   a train pings when the sweep passes where it really is. Nothing new is invented about the trains. */
+   filter and volume; switching crossfades. Sonar shows a radar over the Loop that turns once per data refresh
+   and pings once each time fresh data lands. */
 const sndBtn=$("snd"),sndMenu=$("sndmenu"),SND_KEY="metraLive.sound",SND_MODES=["brown","water","sonar","off"];
 const SND_LEVEL={brown:.07,water:.09,sonar:.05},SND_NAME={brown:"brown noise",water:"water",sonar:"sonar",off:"off"};
 let sndMode="brown",sndLast="brown";
@@ -991,7 +994,7 @@ function applySound(fast){
   sndBtn.classList.toggle("wait",waiting);
   sndBtn.title=`Sound: ${SND_NAME[sndMode]}${waiting?", starts when you click anywhere":""}. Click to choose (M mutes)`;
   for(const q of sndMenu.querySelectorAll("[data-m]"))q.setAttribute("aria-checked",String(q.dataset.m===sndMode));
-  scheduleBubbles();
+  scheduleBubbles();document.body.classList.toggle("sonar",sndMode==="sonar");
   if(!actx)return;
   if(sndOn&&actx.state==="suspended")actx.resume().then(()=>applySound()).catch(()=>{});
   const t=actx.currentTime;
@@ -1006,13 +1009,12 @@ function bubble(){                                                            //
     const o=actx.createOscillator(),g=actx.createGain();o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*2.3,t+d);
     g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.32,t+.008);g.gain.exponentialRampToValueAtTime(.001,t+d);
     o.connect(g).connect(bus.water);o.start(t);o.stop(t+d+.02);t+=.05+Math.random()*.09}}
-function sonarPing(tr){
-  if(!actx||actx.state!=="running"||!pingIn)return;
-  const now=actx.currentTime;if(now-lastPingAt<.09)return;lastPingAt=now;  // trains in a row along one line share a ping
-  const f=1100+Math.max(0,ORDER.indexOf(tr.L.key))*18;                       // each line pings at its own slightly different pitch
-  const o=actx.createOscillator(),g=actx.createGain();o.frequency.setValueAtTime(f,now);o.frequency.exponentialRampToValueAtTime(f*.94,now+1.1);
-  g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(tr.stale?.25:.6,now+.006);g.gain.exponentialRampToValueAtTime(.0008,now+1.3);
-  o.connect(g).connect(pingIn);o.start(now);o.stop(now+1.35)}
+function sonarPing(){                                                         // one ping each time the radar completes a turn (fresh data landed)
+  if(sndMode!=="sonar"||!actx||actx.state!=="running"||!pingIn)return;
+  const now=actx.currentTime,f=1150,o=actx.createOscillator(),g=actx.createGain();
+  o.frequency.setValueAtTime(f,now);o.frequency.exponentialRampToValueAtTime(f*.95,now+1.8);
+  g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.7,now+.006);g.gain.exponentialRampToValueAtTime(.0008,now+2.2);
+  o.connect(g).connect(pingIn);o.start(now);o.stop(now+2.25)}
 function setSndMode(m){if(!SND_MODES.includes(m))return;sndMode=m;if(m!=="off")sndLast=m;
   try{localStorage.setItem(SND_KEY,m);localStorage.setItem(SND_KEY+"Last",sndLast)}catch(_){}
   if(m!=="off")startAudio();applySound(true)}
@@ -1032,19 +1034,22 @@ const firstGesture=()=>{removeEventListener("pointerdown",firstGesture,true);rem
   if(sndOn)startAudio();else applySound()};
 addEventListener("pointerdown",firstGesture,true);addEventListener("keydown",firstGesture,true);
 applySound();
-/* sonar sweep: one turn every 24 s, clockwise around the downtown terminals */
-const SWEEP_S=24;let sweepPrev=null,sweepPrevT=0;
-const SWEEP_C=(()=>{let x=0,y=0,n=0;for(const id of Object.keys(TERMINALS)){const r=STN.get(id);if(r)for(const q of r.inst){x+=q.xy[0];y+=q.xy[1];n++}}return n?[x/n,y/n]:null})();
-function sonarRing(tr){if(reduceMotion())return;tr.g.classList.remove("sonar");clearTimeout(tr.sonTO);
-  requestAnimationFrame(()=>{if(!tr.gone){tr.g.classList.add("sonar");tr.sonTO=setTimeout(()=>tr.g.classList.remove("sonar"),1950)}})}
-function sonarSweep(now){
-  if(sndMode!=="sonar"||!SWEEP_C||document.hidden||now-sweepPrevT>500){sweepPrev=null;sweepPrevT=now;if(sndMode!=="sonar"||!SWEEP_C)return}
-  const a=(now/1000/SWEEP_S%1)*2*Math.PI;
-  if(sweepPrev!=null&&a!==sweepPrev)for(const tr of trains){
-    if(tr.gone||(focusKey&&tr.L.key!==focusKey))continue;                   // focusing a line: only its trains ping
-    let ang=Math.atan2(tr.shown[1]-SWEEP_C[1],tr.shown[0]-SWEEP_C[0]);if(ang<0)ang+=2*Math.PI;
-    if(sweepPrev<a?(ang>sweepPrev&&ang<=a):(ang>sweepPrev||ang<=a)){sonarRing(tr);sonarPing(tr)}}
-  sweepPrev=a;sweepPrevT=now}
+/* radar: centred on the downtown terminals, one full turn per 30 s data refresh.
+   The beam reaches the top as the next fetch goes out, waits there while it's in flight, and pings when it lands. */
+const RADAR_C=(()=>{let x=0,y=0,n=0;for(const id of Object.keys(TERMINALS)){const r=STN.get(id);if(r)for(const q of r.inst){x+=q.xy[0];y+=q.xy[1];n++}}return n?[x/n,y/n]:null})();
+const RADAR_R=340;let radarSweep=null,radarRot="";
+if(RADAR_C){const g=el("g",{class:"radar",transform:`translate(${RADAR_C[0].toFixed(1)},${RADAR_C[1].toFixed(1)})`});world.insertBefore(g,trackG);
+  for(const f of[1,.66,.33])el("circle",{r:(RADAR_R*f).toFixed(1)},g);
+  el("path",{class:"rx",d:`M${-RADAR_R} 0H${RADAR_R}M0 ${-RADAR_R}V${RADAR_R}`},g);
+  radarSweep=el("g",{class:"sweep"},g);
+  const N=20,SPAN=50;                                                         // a fading 50° trail behind the beam
+  for(let i=0;i<N;i++){const a0=(-SPAN+SPAN*i/N-90)*Math.PI/180,a1=(-SPAN+SPAN*(i+1)/N-90+.4)*Math.PI/180;
+    el("path",{class:"wedge",d:`M0 0L${(RADAR_R*Math.cos(a0)).toFixed(1)} ${(RADAR_R*Math.sin(a0)).toFixed(1)}A${RADAR_R} ${RADAR_R} 0 0 1 ${(RADAR_R*Math.cos(a1)).toFixed(1)} ${(RADAR_R*Math.sin(a1)).toFixed(1)}Z`,"fill-opacity":(.32*Math.pow((i+1)/N,2)).toFixed(3)},radarSweep)}
+  el("path",{class:"beam",d:`M0 0V${-RADAR_R}`},radarSweep)}
+function radarFrame(){
+  if(!radarSweep||sndMode!=="sonar")return;
+  const f=inflight||!nextPollAt?1:Math.max(0,Math.min(1,1-(nextPollAt-Date.now())/POLL));
+  const r=`rotate(${(f*360).toFixed(2)})`;if(r!==radarRot){radarRot=r;radarSweep.setAttribute("transform",r)}}
 /* ---- welcome panel ----
    Shows on start unless "Don't show this on start" was ticked (remembered in this browser).
    Closing shrinks it into the ? button by the title; the ? grows it back out. */
@@ -1307,7 +1312,6 @@ function makeTrainVisual(L){
   el("circle",{class:"glow",r:10,fill:L.color},g);
   el("circle",{class:"halo",r:16},g);
   el("circle",{class:"ring",r:7,stroke:L.color},g);
-  el("circle",{class:"sring",r:7,stroke:L.color},g);
   const inner=el("g",{},g);
   const arrow=el("path",{class:"body",d:"M12.5,0 L-7,8 L-3.2,0 L-7,-8 Z",fill:L.color},inner);
   const dot=el("circle",{class:"body",r:6.2,fill:L.color},g);
@@ -1343,7 +1347,7 @@ function applyTrainClass(t){const d=!!focusKey&&t.L.key!==focusKey;t.g.classList
 function pingTrain(t){t.g.classList.remove("ping");clearTimeout(t.pingTO);
   requestAnimationFrame(()=>{if(!t.gone){t.g.classList.add("ping");t.pingTO=setTimeout(()=>t.g.classList.remove("ping"),1450)}})}
 function removeTrain(t,fade){
-  t.gone=true;clearTimeout(t.pingTO);clearTimeout(t.sonTO);live.delete(t.id);trains=trains.filter(x=>x!==t);
+  t.gone=true;clearTimeout(t.pingTO);live.delete(t.id);trains=trains.filter(x=>x!==t);
   if(selected===t)closeCard();
   if(fade){t.g.classList.add("bye");t.trail.g.classList.add("bye");setTimeout(()=>{t.g.remove();t.trail.g.remove()},900)}
   else{t.g.remove();t.trail.g.remove()}}
@@ -1410,6 +1414,7 @@ async function poll(){
     let fa=+data.fetched_at;if(isFinite(fa)&&fa>0){if(fa<1e12)fa*=1000;clockOffset=Date.now()-fa;lastFeedAt=fa}else{clockOffset=0;lastFeedAt=Date.now()}
     if(mode==="sim"){liveBack=true}                 // live works again: offer to switch, don't mix it with simulated trains
     else{ingest(data);everLoaded=true}
+    sonarPing();
     fails=0;lastOkAt=Date.now();lastError="";
   }catch(e){fails++;lastError=e&&e.name==="AbortError"?"The feed took too long to answer":(e&&e.message)||"Network error"}
   finally{clearTimeout(to);inflight=false;nextPollAt=Date.now()+POLL;pollTimer=setTimeout(poll,POLL);refreshStatus()}
@@ -1855,7 +1860,7 @@ function frame(now){
     const a=`${t.L.name} line${trainLabel(t)?", "+trainLabel(t).toLowerCase():""}, ${dirText(t).toLowerCase()}${t.stale?", position out of date":""}`;
     if(a!==t.a11y){t.a11y=a;t.g.firstChild.textContent=a}
   }
-  sonarSweep(now);
+  radarFrame();
   if(following&&!camAnim&&!drag){
     const cx=vb.x+vb.w/2,cy=vb.y+vb.h/2;
     let oy=0;if(isNarrow()&&card.classList.contains("on"))oy=card.offsetHeight/2*(vb.h/ch());
@@ -1876,7 +1881,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 if(GEO_ISSUES.length)console.warn("Schematic ordering issues:",GEO_ISSUES);
-window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get SWEEP_C(){return SWEEP_C},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
+window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get RADAR_C(){return RADAR_C},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
 tickHeader();poll();requestAnimationFrame(frame);
 })();
 </script>
