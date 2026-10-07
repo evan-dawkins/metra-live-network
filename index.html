@@ -324,9 +324,6 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 /* ---------- map ---------- */
 .lake{fill:var(--lake)}
 .border{fill:none;stroke:var(--shore);stroke-width:1.5;stroke-dasharray:7 5;stroke-linecap:round;vector-effect:non-scaling-stroke;opacity:.9}
-.cborder{fill:none;stroke:var(--shore);stroke-width:1.4px;stroke-dasharray:1.5 4;stroke-linecap:round;vector-effect:non-scaling-stroke;opacity:1}
-.ctlbl{font-family:var(--sans);font-size:11px;font-weight:600;fill:var(--lakelbl);letter-spacing:.28em;opacity:.8}
-:root[data-theme="light"] .ctlbl{fill:#A9B8C4}
 .stlbl{font-family:var(--sans);font-size:13px;font-weight:600;fill:var(--lakelbl);letter-spacing:.32em}
 :root[data-theme="light"] .stlbl{fill:#97A8B6}
 .shore{fill:none;stroke:var(--shore);stroke-width:1.8;vector-effect:non-scaling-stroke}
@@ -726,13 +723,7 @@ const borderG=el("g",{"aria-hidden":"true"},world),STATE_LBL=[];
  SL("WISCONSIN",430,wy,0,-9,"middle");SL("ILLINOIS",430,wy,0,19,"middle");
  const sc=STN.get("93rd St|South Chicago")||STN.get("93rd St"),ix=Math.max(1150,(sc?sc.xy[0]:1092)+50);
  el("path",{class:"border",d:`M${ix},1000 L${ix},4500`},borderG);
- SL("INDIANA",ix,1420,12,0,"start");
- /* county lines: laid out like Metra's own system map (long straight lines with a few right-angle steps),
-    fitted to this diagram so every station sits in its real county. */
- const COUNTY_LINES=["M295,35 L295,337", "M-400,337 L330,337 L330,300 L700,300 L700,248 L790,248 L790,297 L1150,297", "M251,337 L251,585 L149,585 L149,732 L58,732 L58,850", "M251,528 L489,528", "M489,528 L489,700 L426,700 L426,850", "M-400,850 L426,850", "M340,850 L340,1120 L450,1120 L450,1285 L860,1285 L860,1439 L1150,1439"],COUNTY_LBL=[{"t": "MCHENRY", "x": 200, "y": 75}, {"t": "LAKE", "x": 456, "y": 170}, {"t": "KANE", "x": 120, "y": 430}, {"t": "COOK", "x": 780, "y": 880}, {"t": "DU PAGE", "x": 222, "y": 622}, {"t": "WILL", "x": 190, "y": 1000}];
- for(const d of COUNTY_LINES)el("path",{class:"cborder",d},borderG);
- for(const q of COUNTY_LBL){const t=el("text",{class:"ctlbl","text-anchor":"middle"},borderG);t.textContent=q.t;STATE_LBL.push({t,x:q.x,y:q.y,dx:0,dy:4,fs:11})}
-}
+ SL("INDIANA",ix,1420,12,0,"start");}
 el("path",{class:"lake",d:LAKE},world);
 el("path",{class:"shore",d:"M800,-3000 L800,90 L892,182 L892,560 L975,643 L1048,643 L1048,935 L1128,1015 L1128,1250 L1240,1362 L4200,1362"},world);
 /* ---- lake water ----
@@ -783,7 +774,7 @@ for(const rec of STATIONS){
   g.addEventListener("pointerleave",hideTip);
 }
 // markers keep a steady on-screen size; only the track geometry scales with zoom
-function updateStateLabels(k){for(const q of STATE_LBL){q.t.style.fontSize=((q.fs||13)*k).toFixed(3)+"px";
+function updateStateLabels(k){for(const q of STATE_LBL){q.t.style.fontSize=(13*k).toFixed(3)+"px";
   q.t.setAttribute("y",(q.y+q.dy*k).toFixed(2));q.t.setAttribute("x",(q.x+q.dx*k).toFixed(2))}}
 function updateMarkers(){
   updateStateLabels(vb.w/cw());
