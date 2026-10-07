@@ -21,8 +21,12 @@ def main():
         data = open(sys.argv[1], "rb").read()
     else:
         req = urllib.request.Request(SOURCE, headers={"User-Agent": "metra-live-network timetable builder"})
-        data = urllib.request.urlopen(req, timeout=120).read()
+        with urllib.request.urlopen(req, timeout=120) as r:
+            print(f"Downloaded {r.geturl()} -> HTTP {r.status}, {r.headers.get('Content-Type')}")
+            data = r.read()
+    print(f"{len(data)} bytes, starts with {data[:4]!r}")
     z = zipfile.ZipFile(io.BytesIO(data))
+    print("files:", ", ".join(z.namelist()))
 
     last = {}                                    # trip_id -> (stop_sequence, stop_id, arrival_time)
     for r in rows(z, "stop_times.txt"):
@@ -48,4 +52,11 @@ def main():
         sys.exit("Too few trips: the timetable looks wrong, not saving a broken file.")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as e:                      # show the reason on the Actions page (as an annotation)
+        msg = f"{type(e).__name__}: {e}".replace("\n", " ")[:900]
+        print(f"::error title=Timetable build failed::{msg}")
+        raise
