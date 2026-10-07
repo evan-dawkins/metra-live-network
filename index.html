@@ -258,6 +258,10 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 #spop .star[aria-pressed="true"]{border-color:var(--ink)}
 #spop .star:disabled{opacity:.45;cursor:default;background:var(--soft)}
 #spop .note{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.35}
+#spop{max-height:calc(100% - 120px);overflow-y:auto}
+.sdir{margin-top:10px;padding-top:8px;border-top:1px solid var(--edge)}
+.sdir .arr:first-of-type{margin-top:4px}
+.snone{font-size:13px;color:var(--muted);margin-top:4px}
 
 /* ---------- favorite stations board (a small departure sign) ---------- */
 #board{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));top:calc(58px + env(safe-area-inset-top,0px));width:318px;
@@ -1521,6 +1525,7 @@ function inkOn(hex){const h=hex.replace("#",""),v=[0,2,4].map(i=>parseInt(h.slic
   return .2126*v[0]+.7152*v[1]+.0722*v[2]>.38?"#0B1620":"#FFFFFF"}
 const bullet=k=>`<span class="bullet" style="background:${LINES[k].color};color:${inkOn(LINES[k].color)}">${LINES[k].code}</span>`;
 function feedHealthy(){return everLoaded&&Date.now()-lastOkAt<3*POLL}
+const DOWNTOWN=new Set(["Ogilvie","Union Station","LaSalle St","Millennium"]);   // a trip ending here is inbound
 // predicted stops at this station, soonest first
 function predictionsAt(rec,nowSec){const out=[];
   for(const tr of trips){if(tr.canceled||!Array.isArray(tr.stops))continue;const key=ROUTE_KEY[tr.route_id];if(!key)continue;
@@ -1528,7 +1533,8 @@ function predictionsAt(rec,nowSec){const out=[];
       const tm=x.arr||x.dep;if(!tm||tm<nowSec-30)break;
       const ends=i===st.length-1;
       const live=trains.some(t=>t.trip===tr.trip_id&&!t.stale);
-      out.push({key,tm,no:trainNo(tr.veh_label),ends,dest:ends?"":destName(tr.last_stop||st[st.length-1].id),live,id:tr.trip_id});break}}
+      const last=tr.last_stop||st[st.length-1].id;
+      out.push({key,tm,no:trainNo(tr.veh_label),ends,dest:ends?"":destName(last),live,id:tr.trip_id,inb:DOWNTOWN.has(STOP_MAP[last])});break}}
   return out.sort((a,b)=>a.tm-b.tm)}
 // trains really heading here, from their last real GPS fix
 function approachingAt(rec){const out=[];
@@ -1556,6 +1562,26 @@ function arrivalRows(rec,max){
     +`<span class="when gps">${a.at?"at station":a.stops===0?"next stop":a.stops+1+" stops away"}</span></div>`).join("")};
 }
 
+// a station's own schedule: the next few trains each way, with minutes away when Metra predicts them
+function predRow(a,nowSec){return`<div class="arr${a.live?"":" pred"}" title="${a.live?"Train is reporting GPS now":"Prediction only: this train isn't reporting GPS yet"}">${bullet(a.key)}`
+  +`<span class="to">${a.no?`<span class="no">${a.no}</span>`:""}${a.ends?"arriving":"to "+esc(a.dest)}</span>`
+  +`<span class="when"><b>${minsTo(a.tm,nowSec)}</b>${fmtClock(a.tm)}</span></div>`}
+function gpsRow(a){return`<div class="arr">${bullet(a.key)}<span class="to">${a.t.run.no?`<span class="no">${a.t.run.no}</span>`:""}${a.t.dirSign<0?"to Chicago":"outbound"}</span>`
+  +`<span class="when gps">${a.at?"at station":a.stops===0?"next stop":a.stops+1+" stops away"}</span></div>`}
+function stationSchedule(rec,per){
+  const nowSec=serverNow()/1000,term=DOWNTOWN.has(rec.id);
+  if(mode!=="sim"&&!everLoaded)return`<div class="fav none" style="padding:0;border:0">Waiting for live data…</div>`;
+  if(mode!=="sim"&&!feedHealthy())return`<div class="fav none" style="padding:0;border:0">Live feed not answering, so no times right now.</div>`;
+  const heads=term?["Arriving","Departing"]:["To Chicago","Away from Chicago"];let a,b,note;
+  if(mode!=="sim"&&trips){const p=predictionsAt(rec,nowSec);
+    a=p.filter(x=>x.inb).slice(0,per).map(x=>predRow(x,nowSec));b=p.filter(x=>!x.inb).slice(0,per).map(x=>predRow(x,nowSec));
+    note="Minutes are Metra's live predictions.";}
+  else{const g=approachingAt(rec);a=g.filter(x=>x.t.dirSign<0).slice(0,per).map(gpsRow);b=g.filter(x=>x.t.dirSign>0).slice(0,per).map(gpsRow);
+    note=mode==="sim"?"Simulated trains, not real.":"No times in the feed right now. Based on live train positions.";}
+  const sec=(h,r)=>`<div class="sdir"><span class="kick2">${h}</span>${r.length?r.join(""):`<div class="snone">Nothing on the way right now</div>`}</div>`;
+  return sec(heads[0],a)+sec(heads[1],b)+`<div class="note">${note}</div>`;
+}
+
 /* =====================================================================
    FAVORITE STATIONS — click a station, ☆ to pin (up to 5).
    Saved in this browser only (localStorage key metraLive.favorites).
@@ -1576,9 +1602,9 @@ function openStationPop(rec){if(spopRec===rec){closeStationPop();return}
 function closeStationPop(){if(!spopRec)return;spopRec=null;spop.classList.remove("on");document.body.classList.remove("pop");labelsDirty=true}
 let spopSig="";
 function renderStationPop(){const rec=spopRec;if(!rec)return;
-  const lines=ORDER.filter(k=>rec.lines.has(k)),on=isFav(rec.id),full=!on&&FAV.ids.length>=FAV_MAX,rows=arrivalRows(rec,2);
+  const lines=ORDER.filter(k=>rec.lines.has(k)),on=isFav(rec.id),full=!on&&FAV.ids.length>=FAV_MAX;
   const html=`<button class="x" aria-label="Close station">×</button><div class="nm">${esc(rec.full)}</div><div class="ln">${lines.map(bullet).join("")}</div>`
-    +(rows.html||`<div class="fav none" style="padding:0;border:0">${rows.msg}</div>`)
+    +stationSchedule(rec,3)
     +`<button class="star" aria-pressed="${on}" ${full?"disabled":""}>${on?"★ On your board":"☆ Add to your board"}</button>`
     +(full?`<div class="note">Your board holds ${FAV_MAX} stations. Remove one to add this.</div>`:on?`<div class="note">Click again to remove it.</div>`:"");
   if(html===spopSig)return;spopSig=html;spop.innerHTML=html;
