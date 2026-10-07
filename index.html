@@ -270,7 +270,11 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 #board .bh .col{margin-left:auto;background:none;border:0;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:3px 7px;border-radius:5px}
 #board .bh .col:hover{color:var(--ink);background:var(--hover)}
 #board .bl{overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--edge)}
-#board.min{width:auto} #board.min .bl,#board.min .bf{display:none}
+#board.min{display:none}
+#board.fly{transition:transform .42s cubic-bezier(.6,0,.2,1),opacity .36s ease;transform-origin:0 0;pointer-events:none}
+#favBtn{display:none} body.favmin #favBtn{display:inline-flex}
+#favBtn svg{width:14px;height:14px} #favBtn svg path{fill:currentColor}
+#favBtn.catch{box-shadow:0 0 0 6px rgba(95,211,155,.22);color:var(--ink)}
 .fav{padding:9px 12px 10px;border-bottom:1px solid var(--edge)}
 .fav:last-child{border-bottom:0}
 .fav .fn{display:flex;align-items:center;gap:7px;min-width:0}
@@ -405,7 +409,7 @@ button{touch-action:manipulation}
   /* favorites: a one-line strip above the line picker; tap it for the full board */
   #board{display:none;left:8px;right:8px;top:auto;bottom:calc(58px + env(safe-area-inset-bottom,0px));width:auto!important;max-height:56vh;z-index:6}
   body.boardsheet #board{display:flex}
-  #board.min .bl,#board.min .bf{display:block}
+  #board.min{display:none} #favBtn{display:inline-flex}
   #fstrip{position:absolute;left:8px;right:8px;bottom:calc(56px + env(safe-area-inset-bottom,0px));height:38px;align-items:center;gap:8px;
     padding:0 10px 0 11px;background:var(--panel);border:1px solid var(--edge);border-radius:10px;font-size:14px;z-index:2;cursor:pointer;text-align:left;width:auto}
   body.hasfav #fstrip{display:flex}
@@ -434,6 +438,7 @@ button{touch-action:manipulation}
       <button id="helpBtn" aria-label="What is this? Open the welcome guide" title="What is this? (?)" aria-controls="intro">?</button>
       <button id="snd" class="ibtn snd" aria-pressed="true" aria-label="Ambient sound" title="Ambient sound (M)"><svg viewBox="0 0 20 20" aria-hidden="true"><path class="sp" d="M3 7.6h3.1L10.4 4v12l-4.3-3.6H3z"/><path class="w1" d="M13.2 7.6c.9.6 1.4 1.4 1.4 2.4s-.5 1.8-1.4 2.4"/><path class="w2" d="M15.5 5.2c1.7 1.2 2.6 2.9 2.6 4.8s-.9 3.6-2.6 4.8"/><path class="x" d="M13.2 7.8l4.6 4.4M17.8 7.8l-4.6 4.4"/></svg></button>
       <button id="theme" class="ibtn theme" aria-label="Switch to light mode" title="Switch to light mode (T)"><svg viewBox="0 0 20 20" aria-hidden="true"><g class="sun"><circle cx="10" cy="10" r="3.4"/><path d="M10 2.6v1.8M10 15.6v1.8M2.6 10h1.8M15.6 10h1.8M4.8 4.8l1.3 1.3M13.9 13.9l1.3 1.3M4.8 15.2l1.3-1.3M13.9 6.1l1.3-1.3"/></g><path class="moon" d="M15.6 12.4A6.2 6.2 0 0 1 7.6 4.4a6.2 6.2 0 1 0 8 8z"/></svg></button>
+      <button id="favBtn" class="ibtn" aria-label="Show your stations" title="Your stations"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.2l2.35 4.95 5.4.68-3.97 3.72 1.03 5.36L10 14.3l-4.81 2.6 1.03-5.35L2.25 7.83l5.4-.68z"/></svg></button>
     </div></div>
   <div class="ops">
     <button class="abtn" id="abtn" aria-expanded="false" aria-controls="apanel" title="Metra service alerts"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="ico" d="M8 1.8 L15 14 H1 Z M8 6.2 V9.6 M8 11.6 V11.7"/></svg><span id="acount"></span><span class="aw" id="aword"></span></button>
@@ -1590,7 +1595,8 @@ function closeBoardSheet(){if(document.body.classList.contains("boardsheet")){do
 function renderBoard(){
   const favs=FAV.ids.map(id=>STN.get(id)).filter(Boolean),narrow=isNarrow();
   document.body.classList.toggle("hasfav",favs.length>0);
-  board.classList.toggle("min",FAV.min&&!narrow);
+  if(!board.classList.contains("fly"))board.classList.toggle("min",FAV.min&&!narrow);
+  document.body.classList.toggle("favmin",FAV.min&&!narrow);
   let src="",body;
   if(!favs.length)body=`<p class="bmsg">Click any station on the map, then ☆, to pin it here. Up to ${FAV_MAX}.</p>`;
   else body=favs.map(rec=>{const r=arrivalRows(rec,3);if(r.src)src=src||r.src;
@@ -1601,17 +1607,35 @@ function renderBoard(){
     :src==="gps"?"No times in the feed right now. Based on live train positions.":"";
   const html=`<div class="bh"><span class="kick2">★ Your stations</span>${favs.length?`<span class="cnt">${favs.length}/${FAV_MAX}</span>`:""}`
     +(mode==="sim"?`<span class="simtag">Simulated</span>`:"")
-    +`<button class="col" aria-label="${narrow?"Close":FAV.min?"Expand":"Collapse"} your stations" aria-expanded="${narrow||!FAV.min}">${narrow?"×":FAV.min?"▸":"▾"}</button></div>`
+    +`<button class="col" aria-label="${narrow?"Close your stations":"Tuck your stations into the ★ button"}" title="${narrow?"Close":"Tuck into ★"}">${narrow?"×":"▴"}</button></div>`
     +`<div class="bl">${body}</div>${foot?`<div class="bf">${foot}</div>`:""}`;
   if(html===boardSig)return;boardSig=html;board.innerHTML=html;labelsDirty=true;
 }
 board.addEventListener("pointerdown",e=>e.stopPropagation());
 board.addEventListener("click",e=>{
-  if(e.target.closest(".col")){if(isNarrow()){closeBoardSheet();return}FAV.min=!FAV.min;saveFav();boardSig="";renderBoard();refit();return}
+  if(e.target.closest(".col")){if(isNarrow()){closeBoardSheet();return}setBoardMin(true);return}
   const f=e.target.closest(".fav");if(!f)return;const rec=STN.get(f.dataset.id);if(!rec)return;
   if(e.target.closest(".rm")){toggleFav(rec);return}
   if(e.target.closest(".go")){closeBoardSheet();const z=Math.min(vb.w,FIT_W*.45),r=cw()/ch();stopFollowing();
     flyTo({x:rec.xy[0]-z/2,y:rec.xy[1]-z/r/2,w:z,h:z/r});setTimeout(()=>openStationPop(rec),300)}});
+/* desktop: the board tucks into the ★ next to the title, and grows back out of it */
+const favBtn=$("favBtn");
+function boardAtStar(){const b=favBtn.getBoundingClientRect(),r=board.getBoundingClientRect();
+  return`translate(${(b.left-r.left).toFixed(0)}px,${(b.top-r.top).toFixed(0)}px) scale(${Math.max(.05,b.width/r.width).toFixed(3)})`}
+let boardAnim=0;
+function setBoardMin(min){clearTimeout(boardAnim);
+  if(min===FAV.min&&!board.classList.contains("fly"))return;
+  FAV.min=min;saveFav();boardSig="";
+  if(reduceMotion()){board.classList.remove("fly");renderBoard();refit();if(min)favBtn.focus({preventScroll:true});return}
+  if(min){document.body.classList.add("favmin");board.classList.add("fly");board.style.transform=boardAtStar();board.style.opacity="0";
+    boardAnim=setTimeout(()=>{board.classList.remove("fly");board.style.transform=board.style.opacity="";renderBoard();refit();
+      favBtn.classList.add("catch");setTimeout(()=>favBtn.classList.remove("catch"),700)},430)}
+  else{board.classList.remove("min");renderBoard();board.style.transform=boardAtStar();board.style.opacity="0";void board.offsetWidth;
+    board.classList.add("fly");requestAnimationFrame(()=>{board.style.transform="";board.style.opacity=""});
+    boardAnim=setTimeout(()=>{board.classList.remove("fly");refit()},450)}
+}
+favBtn.onclick=e=>{e.stopPropagation();if(isNarrow()){closeStationPop();if(selected)closeCard();document.body.classList.add("boardsheet");boardSig="";renderBoard();return}setBoardMin(!FAV.min)};
+
 /* phone: one favorite at a time on a strip; tap for the whole board */
 let stripIdx=0,stripT=0;
 function tickStrip(){if(!isNarrow())return;const favs=FAV.ids.map(id=>STN.get(id)).filter(Boolean);if(!favs.length)return;
