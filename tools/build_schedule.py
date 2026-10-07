@@ -44,6 +44,32 @@ def main():
         if tid not in last or seq > last[tid][0]:
             last[tid] = (seq, r.get("stop_id", ""), t if len(t) == 8 else t.zfill(8))
 
+    # Keep only trips that run in the next 8 days (the job runs daily), so the file stays small and quick to read.
+    import datetime
+    today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-6))).date()
+    days = [today + datetime.timedelta(d) for d in range(-1, 8)]
+    names = set(z.namelist())
+    active = set()
+    if "calendar.txt" in names:
+        wk = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+        for r in rows(z, "calendar.txt"):
+            try:
+                a = datetime.datetime.strptime(r["start_date"], "%Y%m%d").date(); b = datetime.datetime.strptime(r["end_date"], "%Y%m%d").date()
+            except (KeyError, ValueError):
+                continue
+            if any(a <= d <= b and r.get(wk[d.weekday()]) == "1" for d in days):
+                active.add(r.get("service_id", ""))
+    if "calendar_dates.txt" in names:
+        want = {d.strftime("%Y%m%d") for d in days}
+        for r in rows(z, "calendar_dates.txt"):
+            if r.get("date") in want and r.get("exception_type") == "1":
+                active.add(r.get("service_id", ""))
+    if active and "trips.txt" in names:
+        keep = {r.get("trip_id", "") for r in rows(z, "trips.txt") if r.get("service_id") in active}
+        before = len(last)
+        last = {k: v for k, v in last.items() if k in keep}
+        print(f"Running this week: {len(last)} of {before} trips")
+
     version = ""
     if "feed_info.txt" in z.namelist():
         for r in rows(z, "feed_info.txt"):
