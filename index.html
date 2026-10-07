@@ -1247,7 +1247,8 @@ function positionLabels(){
 const chips={};
 const consoleEl=$("console");
 const allChip=document.createElement("button");allChip.className="chip all";allChip.textContent="All lines";
-allChip.setAttribute("aria-pressed","true");allChip.onclick=()=>setFocus(null);consoleEl.appendChild(allChip);
+allChip.setAttribute("aria-pressed","true");allChip.title="Show all lines and fold this bar";
+allChip.onclick=()=>{if(focusKey)setFocus(null);if(!linesMin)ctog.onclick()};consoleEl.appendChild(allChip);   // All lines: back to every line, and fold the bar (the folded "All lines" opens it again)
 for(const key of ORDER){const L=LINES[key],b=document.createElement("button");
   b.className="chip";b.setAttribute("aria-pressed","false");b.title=`Focus the ${L.name} line`;
   b.innerHTML=`<i style="background:${L.color}"></i>${L.code}<span class="ad" aria-hidden="true"></span><span class="n" id="n-${key}"></span>`;
