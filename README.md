@@ -4,7 +4,7 @@ A live map of every Metra train in the Chicago region, moving in real time on a 
 
 Built to sit on a second monitor like an aquarium: quiet, calm, and fun to watch for hours. Also works on a phone.
 
-**Live site:** `https://YOUR-USERNAME.github.io/metra-live-network/`
+**Live site:** `https://evan-dawkins.github.io/metra-live-network/`
 
 ---
 
