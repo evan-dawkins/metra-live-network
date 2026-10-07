@@ -10,7 +10,7 @@ Built to sit on a second monitor like an aquarium: quiet, calm, and fun to watch
 
 ## What you see
 
-- **All 11 Metra lines and 238 stations**, drawn as a schematic (straight lines and 45° turns) matched to Metra's own system diagram, including the Rock Island Beverly Branch, the Metra Electric South Chicago and Blue Island branches, the UP-NW McHenry Branch, and all four downtown terminals (Ogilvie, Union Station, LaSalle Street, Millennium).
+- **All 11 Metra lines and 238 stations**, drawn as a schematic (straight lines and 45° turns) matched to Metra's own system diagram, including the Rock Island Beverly Branch, the Metra Electric South Chicago and Blue Island branches, the UP-NW McHenry Branch, and all four downtown terminals (Ogilvie, Union Station, LaSalle Street, Millennium). 
 - **Real trains, live.** Each train is an arrow pointing the way it's heading, with a soft fading trail showing where it has just been.
 - **Your stations.** Pin up to 5 favorite stations to a small departure board with Metra's live arrival predictions: line, train number, destination, and minutes away.
 - **Service alerts** from Metra, in a small dropdown in the top bar. Lines with alerts get a tiny amber dot.
