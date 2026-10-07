@@ -310,6 +310,30 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 .sdir .arr:first-of-type{margin-top:4px}
 .snone{font-size:13px;color:var(--muted);margin-top:4px}
 
+/* ---------- today's report card ---------- */
+#rcBtn{display:none} body.hasreport #rcBtn{display:inline-flex}
+#rcBtn svg{width:15px;height:15px} #rcBtn svg path{stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round}
+#rcBtn[aria-expanded="true"]{color:var(--ink);background:var(--pressed)}
+#rcard{position:fixed;z-index:4;width:300px;max-height:calc(100vh - 150px);display:flex;flex-direction:column;background:var(--panel);
+  border:1px solid var(--edge);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+#rcard.pnl{translate:0 -6px;transform-origin:0 0} #rcard.pnl.on{translate:0 0}
+#rcard .bh{display:flex;align-items:center;gap:8px;padding:8px 6px 7px 12px;flex:none}
+#rcard .bh .cnt{font-size:12px;color:var(--muted)}
+#rcard .bh .col{margin-left:auto;background:none;border:0;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:3px 7px;border-radius:5px}
+#rcard .bh .col:hover{color:var(--ink);background:var(--hover)}
+#rcard .big{display:flex;align-items:baseline;gap:8px;padding:6px 12px 0;border-top:1px solid var(--edge)}
+#rcard .big b{font-size:34px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+#rcard .big span{font-size:15px;font-weight:600}
+#rcard .sub{padding:2px 12px 10px;font-size:13px;color:var(--muted);line-height:1.35}
+#rcard .rl{overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--edge);padding:4px 12px 6px}
+#rcard .row{display:grid;grid-template-columns:54px 1fr 40px;gap:10px;align-items:center;margin:6px 0;font-size:13px}
+#rcard .bar{height:6px;border-radius:3px;background:var(--soft);overflow:hidden}
+#rcard .bar i{display:block;height:100%;border-radius:3px;transition:width var(--t-slow) var(--ease)}
+#rcard .row .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}
+#rcard .worst{padding:8px 12px;border-top:1px solid var(--edge);font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#rcard .worst b{color:var(--ink)}
+#rcard .bf{flex:none;padding:6px 12px 7px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--edge);line-height:1.35}
+@media (max-width:760px){#rcard{width:auto;max-height:60vh}}
 /* ---------- favorite stations board (a small departure sign) ---------- */
 #board{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));top:calc(58px + env(safe-area-inset-top,0px));width:318px;
   max-height:calc(100% - 150px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--edge);border-radius:12px;
@@ -501,6 +525,7 @@ button{touch-action:manipulation}
       <button id="helpBtn" aria-label="What is this? Open the welcome guide" title="What is this? (?)" aria-controls="intro">?</button>
       <button id="snd" class="ibtn snd" aria-pressed="true" aria-label="Sound" aria-haspopup="menu" aria-expanded="false" aria-controls="sndmenu" title="Sound (M mutes)"><svg viewBox="0 0 20 20" aria-hidden="true"><path class="sp" d="M3 7.6h3.1L10.4 4v12l-4.3-3.6H3z"/><path class="w1" d="M13.2 7.6c.9.6 1.4 1.4 1.4 2.4s-.5 1.8-1.4 2.4"/><path class="w2" d="M15.5 5.2c1.7 1.2 2.6 2.9 2.6 4.8s-.9 3.6-2.6 4.8"/><path class="x" d="M13.2 7.8l4.6 4.4M17.8 7.8l-4.6 4.4"/></svg></button>
       <button id="theme" class="ibtn theme" aria-label="Switch to light mode" title="Switch to light mode (T)"><svg viewBox="0 0 20 20" aria-hidden="true"><g class="sun"><circle cx="10" cy="10" r="3.4"/><path d="M10 2.6v1.8M10 15.6v1.8M2.6 10h1.8M15.6 10h1.8M4.8 4.8l1.3 1.3M13.9 13.9l1.3 1.3M4.8 15.2l1.3-1.3M13.9 6.1l1.3-1.3"/></g><path class="moon" d="M15.6 12.4A6.2 6.2 0 0 1 7.6 4.4a6.2 6.2 0 1 0 8 8z"/></svg></button>
+      <button id="rcBtn" class="ibtn" aria-label="Today's report card" aria-expanded="false" aria-controls="rcard" title="Today's report card"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 16V11M10 16V5M15.5 16V8.5"/></svg></button>
       <button id="favBtn" class="ibtn" aria-label="Show your stations" title="Your stations"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.2l2.35 4.95 5.4.68-3.97 3.72 1.03 5.36L10 14.3l-4.81 2.6 1.03-5.35L2.25 7.83l5.4-.68z"/></svg></button>
     </div></div>
   <div class="ops">
@@ -524,6 +549,7 @@ button{touch-action:manipulation}
 <div id="card" class="pnl" role="dialog" aria-label="Train details"></div>
 <div id="spop" class="pnl" role="dialog" aria-label="Station"></div>
 <section id="board" aria-label="Your stations"></section>
+<section id="rcard" class="pnl" aria-label="Today's report card"></section>
 <button id="fstrip" aria-label="Open your stations"></button>
 <div id="sndmenu" class="pnl" role="menu" aria-label="Sound">
   <button role="menuitemradio" data-m="brown" aria-checked="false"><span class="ck" aria-hidden="true"></span><span>Brown noise</span></button>
@@ -930,7 +956,7 @@ addEventListener("keydown",e=>{if(e.target.closest&&e.target.closest('input:not(
   if(e.key==="?"){e.preventDefault();introOpen?closeIntro():openIntro();return}
   if(introOpen){if(e.key==="Escape")closeIntro();return}
   if(e.key==="Escape"){if(sndMenu.classList.contains("on")){closeSndMenu();sndBtn.focus({preventScroll:true})}else if($("apanel").classList.contains("on"))closeAlerts();else if(spopRec)closeStationPop();else if(document.body.classList.contains("boardsheet"))closeBoardSheet();
-    else if(selected)closeCard();else if(focusKey)setFocus(null)}
+    else if(selected)closeCard();else if(focusKey)setFocus(null);else if(rcard.classList.contains("on"))closeReport()}
   if(e.key==="+"||e.key==="=")zoomBy(1/1.35);
   if(e.key==="-"||e.key==="_")zoomBy(1.35);
   if(e.key==="0")resetView();
@@ -1169,7 +1195,7 @@ function layoutLabels(){
   const UI=[{x0:0,y0:0,x1:W,y1:uiInsets().top-4}];          // don't draw labels under the top strip
   const consoleR=$("console").getBoundingClientRect(),zoomR=document.querySelector(".zoom").getBoundingClientRect(),sr=svg.getBoundingClientRect();
   for(const r of[consoleR,zoomR])UI.push({x0:r.left-sr.left-4,y0:r.top-sr.top-4,x1:r.right-sr.left+4,y1:r.bottom-sr.top+4});
-  for(const q of[$("card"),$("notice"),$("spop"),$("board"),$("fstrip")]){if(!q.offsetHeight||(q.classList.contains("pnl")&&!q.classList.contains("on"))||getComputedStyle(q).visibility==="hidden")continue;const r=q.getBoundingClientRect();
+  for(const q of[$("card"),$("notice"),$("spop"),$("board"),$("fstrip"),$("rcard")]){if(!q.offsetHeight||(q.classList.contains("pnl")&&!q.classList.contains("on"))||getComputedStyle(q).visibility==="hidden")continue;const r=q.getBoundingClientRect();
     const gx=r.width*.03+3,gy=r.height*.03+3;     // panels may still be scaling in: leave room for their full size
     UI.push({x0:r.left-sr.left-gx,y0:r.top-sr.top-gy,x1:r.right-sr.left+gx,y1:r.bottom-sr.top+gy})}
   const placed=[],out=[],PAD=3,FS=labelScale();
@@ -1428,11 +1454,12 @@ async function poll(){
   inflight=true;refreshStatus();const pollT0=performance.now();
   const ac=new AbortController(),to=setTimeout(()=>ac.abort(),FETCH_TIMEOUT);
   try{
-    const resp=await fetch(WORKER_URL+"?trips=1",{cache:"no-store",signal:ac.signal});
+    const resp=await fetch(WORKER_URL+"?trips=1&report=1",{cache:"no-store",signal:ac.signal});
     if(!resp.ok)throw new Error("The feed relay answered with an error ("+resp.status+")");
     const data=await resp.json();
     if(!data||typeof data!=="object")throw new Error("The feed relay sent something unreadable");
     if(mode!=="sim"){takeAlerts(data);takeTrips(data)}
+    takeReport(data);
     if(data.metra_error)throw new Error("Metra's feed returned an error: "+(typeof data.metra_error==="string"?data.metra_error:JSON.stringify(data.metra_error)));
     let fa=+data.fetched_at;if(isFinite(fa)&&fa>0){if(fa<1e12)fa*=1000;clockOffset=Date.now()-fa;lastFeedAt=fa}else{clockOffset=0;lastFeedAt=Date.now()}
     if(mode==="sim"){liveBack=true}                 // live works again: offer to switch, don't mix it with simulated trains
@@ -1797,6 +1824,47 @@ for(const q of document.querySelectorAll(".pnl"))q.addEventListener("transitione
 /* ---- the board ---- */
 const board=$("board"),fstrip=$("fstrip");let boardSig="";
 function closeBoardSheet(){if(document.body.classList.contains("boardsheet")){document.body.classList.remove("boardsheet");labelsDirty=true}}
+/* ---- today's report card ----
+   Kept by the Worker every 2 minutes: each train's last live arrival prediction at its final stop,
+   against Metra's timetable. Within 5:59 is on time (Metra's rule). Starts fresh at 3 AM.
+   The button only appears once the Worker sends a report; open/closed is remembered in this browser. */
+const rcBtn=$("rcBtn"),rcard=$("rcard"),RC_KEY="metraLive.report";
+let report=null,reportSig="",rcOpen=(()=>{try{return localStorage.getItem(RC_KEY)==="1"}catch(_){return false}})();
+const routeKey=r=>ORDER.find(k=>LINES[k].routeId===r);
+function takeReport(d){
+  if(!d||!d.report||typeof d.report!=="object")return;
+  report=d.report;document.body.classList.add("hasreport");renderReport();
+  if(rcOpen&&!rcard.classList.contains("on"))openReport(false)}
+function placeReport(){const r=rcBtn.getBoundingClientRect(),w=rcard.offsetWidth||300;
+  if(isNarrow()){rcard.style.left="8px";rcard.style.right="8px"}else{rcard.style.right="";rcard.style.left=Math.max(8,Math.min(innerWidth-w-8,r.left-6))+"px"}
+  rcard.style.top=(r.bottom+8)+"px"}
+function openReport(remember=true){placeReport();rcard.classList.add("on");rcBtn.setAttribute("aria-expanded","true");labelsDirty=true;
+  if(remember){rcOpen=true;try{localStorage.setItem(RC_KEY,"1")}catch(_){}}}
+function closeReport(){rcard.classList.remove("on");rcBtn.setAttribute("aria-expanded","false");labelsDirty=true;rcOpen=false;try{localStorage.removeItem(RC_KEY)}catch(_){}}
+rcBtn.onclick=e=>{e.stopPropagation();rcard.classList.contains("on")?closeReport():openReport()};
+rcard.addEventListener("pointerdown",e=>e.stopPropagation());
+rcard.addEventListener("click",e=>{if(e.target.closest(".col"))closeReport()});
+addEventListener("resize",()=>{if(rcard.classList.contains("on"))placeReport()});
+function renderReport(){
+  if(!report)return;const R=report,n=(R.on|0)+(R.late|0),pct=n?Math.round(R.on/n*100):0;
+  const dt=/^\d{8}$/.test(R.day)?new Date(+R.day.slice(0,4),+R.day.slice(4,6)-1,+R.day.slice(6,8)):null;
+  const day=dt?dt.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"}):"";
+  let html=`<div class="bh"><span class="kick2">Today's report card</span><span class="cnt">${esc(day)}</span>`
+    +`<button class="col" aria-label="Close the report card" title="Close">▴</button></div>`;
+  if(!n)html+=`<div class="big"><b>–</b><span>on time</span></div><div class="sub">No trains have finished yet today.${R.running?` ${R.running} on the way now.`:""}</div>`;
+  else{
+    html+=`<div class="big"><b>${pct}%</b><span>on time</span></div>`
+      +`<div class="sub">${R.on} of ${n} trains finished on time${R.canceled?` · ${R.canceled} canceled`:""}${R.running?` · ${R.running} on the way`:""}</div>`;
+    const rows=ORDER.map(k=>{const v=R.by&&R.by[LINES[k].routeId];if(!v)return"";const m=(v[0]|0)+(v[1]|0);const q=m?Math.round(v[0]/m*100):null;
+      const tip=m?`${v[0]} of ${m} on time`+(v[2]?`, ${v[2]} canceled`:""):`${v[2]} canceled`;
+      return`<div class="row" title="${esc(LINES[k].name)}: ${tip}">${bullet(k)}<span class="bar"><i style="width:${q??0}%;background:${LINES[k].color}"></i></span><span class="v">${q==null?"–":q+"%"}</span></div>`}).join("");
+    if(rows)html+=`<div class="rl">${rows}</div>`;
+    const W=R.worst,wk=W&&routeKey(W.r);
+    if(W&&wk)html+=`<div class="worst">Latest today: ${bullet(wk)}${W.n?` train ${esc(W.n)}`:""}, <b>${Math.max(6,Math.round(W.d/60))} min</b> late</div>`;
+  }
+  const up=R.updated?new Date(R.updated).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"";
+  html+=`<div class="bf">On time means within 6 minutes of the timetable at the last stop, Metra's own rule. Starts fresh at 3 AM.${up?` Updated ${up}.`:""}</div>`;
+  if(html===reportSig)return;reportSig=html;rcard.innerHTML=html;labelsDirty=true}
 function renderBoard(){
   const favs=FAV.ids.map(id=>STN.get(id)).filter(Boolean),narrow=isNarrow();
   document.body.classList.toggle("hasfav",favs.length>0);
@@ -1904,7 +1972,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 if(GEO_ISSUES.length)console.warn("Schematic ordering issues:",GEO_ISSUES);
-window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get RADAR_C(){return RADAR_C},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
+window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get RADAR_C(){return RADAR_C},takeReport,get report(){return report},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
 tickHeader();poll();requestAnimationFrame(frame);
 })();
 </script>

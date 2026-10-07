@@ -5,6 +5,7 @@
 //   /          -> live data for the dashboard
 //   /?trips=1  -> the same, plus per-stop predictions from the tripupdates feed
 //   /?peek=1   -> a readable sample of what Metra actually sends (for checking the data)
+//   /?report=1 -> the same, plus today's report card (needs the REPORT KV binding and the 2-minute Cron Trigger)
 
 function readVarint(b, p) { let r = 0, s = 1, byte; do { byte = b[p]; r += (byte & 0x7f) * s; s *= 128; p++; } while (byte & 0x80); return [r, p]; }
 // int32/int64 fields (like a delay) can be negative; those need exact 64-bit maths
@@ -241,6 +242,86 @@ function parseAlerts(buf) {
   return out;
 }
 
+/* -------------------------------------- daily report card -------------------------------------- */
+// Every 2 minutes (a Cron Trigger) the Worker notes each train's predicted arrival at its last stop.
+// When the train finishes, that last prediction is compared with Metra's timetable (schedule.json,
+// rebuilt daily by a GitHub Action). Within 5:59 counts as on time, Metra's own rule.
+// The day's tallies live in one KV key and start fresh at 3 AM Chicago time.
+const SCHEDULE_URL = "https://evan-dawkins.github.io/metra-live-network/schedule.json";
+const ON_TIME_SEC = 359, TZ = "America/Chicago", REPORT_KEY = "report";
+
+let chicagoFmt = null;                                      // built once: making these is slow
+function chicago(ms) {
+  chicagoFmt ||= new Intl.DateTimeFormat("en-US", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+  const p = {}; for (const x of chicagoFmt.formatToParts(new Date(ms))) p[x.type] = x.value; return p;
+}
+function offsetMs(ms) {                                     // Chicago local time minus UTC, at that moment
+  const p = chicago(ms);
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(ms / 1000) * 1000;
+}
+// GTFS times count from "noon minus 12 h" on the service date, and can run past 24:00.
+function scheduledEpoch(date, hms) {
+  const y = +date.slice(0, 4), mo = +date.slice(4, 6) - 1, d = +date.slice(6, 8), [h, m, sec] = hms.split(":").map(Number);
+  const noonGuess = Date.UTC(y, mo, d, 12), noonLocal = noonGuess - offsetMs(noonGuess);
+  return Math.round(noonLocal / 1000) - 12 * 3600 + h * 3600 + m * 60 + sec;
+}
+function reportDay(ms) { const p = chicago(ms - 3 * 3600e3); return p.year + p.month + p.day; }   // the day rolls over at 3 AM
+
+let scheduleMemo = null, scheduleAt = 0;
+async function loadSchedule() {
+  if (scheduleMemo && Date.now() - scheduleAt < 3 * 3600e3) return scheduleMemo;
+  const r = await fetch(SCHEDULE_URL, { cf: { cacheTtl: 3 * 3600, cacheEverything: true } });
+  if (!r.ok) throw new Error(`Timetable (schedule.json) returned ${r.status}`);
+  scheduleMemo = await r.json(); scheduleAt = Date.now(); return scheduleMemo;
+}
+function freshReport(day) { return { day, on: 0, late: 0, canceled: 0, by: {}, worst: null, active: {}, done: {}, updated: 0 }; }
+
+// One step: fold the latest trip updates into the day's tallies. Pure, so it can be tested on its own.
+function stepReport(st, updates, sched, nowMs) {
+  const nowSec = Math.floor(nowMs / 1000), day = reportDay(nowMs);
+  if (!st || st.day !== day) st = freshReport(day);
+  const line = r => (st.by[r] ||= [0, 0, 0]);                // [on time, late, canceled]
+  const finish = (id, a) => {
+    const d = a.p - a.s;
+    if (Math.abs(d) <= 3 * 3600) {                          // more than 3 h off means a timetable mix-up: don't rate it
+      const ok = d <= ON_TIME_SEC; ok ? st.on++ : st.late++; line(a.r)[ok ? 0 : 1]++;
+      if (!ok && (!st.worst || d > st.worst.d)) st.worst = { r: a.r, n: a.n, d };
+    }
+    st.done[id] = 1; delete st.active[id];
+  };
+  const seen = new Set();
+  for (const tu of updates) {
+    const t = tu.trip || {}, id = t.trip_id, sc = id && sched.trips[id];
+    if (!sc || !t.start_date || st.done[id]) continue;
+    seen.add(id);
+    const r = t.route_id || "?";
+    if (t.schedule_relationship === 3) { st.canceled++; line(r)[2]++; st.done[id] = 1; delete st.active[id]; continue; }
+    const last = tu.stops.filter(x => x.stop_id === sc[0] && x.schedule_relationship !== 1).pop();
+    const p = last && ((last.arrival && last.arrival.time) || (last.departure && last.departure.time));
+    if (!p) continue;
+    st.active[id] = { r, n: (tu.vehicle && tu.vehicle.label) || "", s: scheduledEpoch(t.start_date, sc[1]), p, seen: nowSec };
+  }
+  for (const [id, a] of Object.entries(st.active)) {
+    const gone = !seen.has(id);
+    if (a.p <= nowSec - 180 || (gone && a.p - nowSec < 600)) finish(id, a);   // arrived (or dropped off the feed as it pulled in)
+    else if (gone && nowSec - a.seen > 1800) delete st.active[id];             // vanished long before arriving: not rated
+  }
+  st.updated = nowMs;
+  return st;
+}
+function reportSummary(st) {
+  if (!st) return null;
+  return { day: st.day, on: st.on, late: st.late, canceled: st.canceled, by: st.by, worst: st.worst,
+           running: Object.keys(st.active).length, updated: st.updated };
+}
+async function updateReport(env) {
+  if (!env.REPORT) return;
+  const headers = { Authorization: `Bearer ${env.METRA_API_TOKEN}` };
+  const [buf, sched, st] = await Promise.all([getFeed("tripupdates", headers), loadSchedule(), env.REPORT.get(REPORT_KEY, { type: "json" })]);
+  await env.REPORT.put(REPORT_KEY, JSON.stringify(stepReport(st, parseTripUpdates(buf), sched, Date.now())));
+}
+
 /* ------------------------------------------ handler ------------------------------------------ */
 const BASE = "https://gtfspublic.metrarr.com/gtfs/public/";
 const JSON_HEADERS = { "content-type": "application/json", "access-control-allow-origin": "*", "Cache-Control": "no-store" };
@@ -307,7 +388,19 @@ export default {
       out.trips = compactTrips(parseTripUpdates(tup.value), nowSec);
     } catch (e) { out.trips_error = String(e && e.message || e); }
 
+    // The day's report card (?report=1), kept up to date by the Cron Trigger below.
+    if (url.searchParams.has("report")) try {
+      if (!env.REPORT) throw new Error("Report card isn't set up yet (no REPORT storage on the Worker)");
+      const st = await env.REPORT.get(REPORT_KEY, { type: "json" });
+      out.report = st && st.day === reportDay(Date.now()) ? reportSummary(st) : reportSummary(freshReport(reportDay(Date.now())));
+    } catch (e) { out.report_error = String(e && e.message || e); }
+
     out.fetched_at = Date.now();
     return new Response(JSON.stringify(out), { headers: JSON_HEADERS });
+  },
+
+  // Cron Trigger (every 2 minutes): keeps the report card going even when nobody has the page open.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(updateReport(env));
   }
 };
