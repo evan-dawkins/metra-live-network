@@ -142,6 +142,12 @@ svg#labels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
 .state{cursor:default}
 
 /* ---------- line console ---------- */
+.ctog{display:flex;align-items:center;gap:7px;height:30px;padding:0 9px;border-radius:7px;border:0;background:none;cursor:pointer;
+  font-size:14px;font-weight:600;color:var(--muted);flex:none;white-space:nowrap}
+.ctog:hover{background:var(--hover);color:var(--ink)}
+.ctog .cur{display:none;align-items:center;gap:6px;color:var(--ink)} .ctog .cur i{width:14px;height:4px;border-radius:2px}
+.console.min .chip,.console.min .focusnote{display:none!important}
+.console.min .ctog .cur{display:inline-flex}
 .console{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:4px;
   background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:5px;max-width:calc(100vw - 180px);flex-wrap:wrap}
 .chip{display:flex;align-items:center;gap:6px;height:30px;padding:0 9px;border-radius:7px;border:0;background:none;
@@ -398,6 +404,9 @@ button{touch-action:manipulation}
   #updated{max-width:92px;overflow:hidden;text-overflow:ellipsis}
   .long{display:none}.short{display:inline}
   /* line picker: one swipeable row across the bottom */
+  .console.min{right:auto;left:calc(8px + env(safe-area-inset-left,0px));bottom:calc(8px + env(safe-area-inset-bottom,0px));border-radius:10px;border-width:1px}
+  .ctog{height:36px;order:-1}
+  .console.min{padding:4px}
   .console{left:0;right:0;bottom:0;max-width:none;border-radius:0;border-width:1px 0 0;flex-wrap:nowrap;overflow-x:auto;
     padding:6px calc(8px + env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) calc(8px + env(safe-area-inset-left,0px));
     scrollbar-width:none;-webkit-overflow-scrolling:touch}
@@ -1102,6 +1111,17 @@ for(const key of ORDER){const L=LINES[key],b=document.createElement("button");
   b.innerHTML=`<i style="background:${L.color}"></i>${L.code}<span class="ad" aria-hidden="true"></span><span class="n" id="n-${key}"></span>`;
   b.onclick=()=>setFocus(focusKey===key?null:key);consoleEl.appendChild(b);chips[key]=b}
 consoleEl.appendChild($("focusnote"));
+/* the line bar folds down to just the current choice; remembered in this browser */
+const ctog=document.createElement("button");ctog.className="ctog";consoleEl.appendChild(ctog);
+const LINES_MIN_KEY="metraLive.linesMin";
+let linesMin=(()=>{try{return localStorage.getItem(LINES_MIN_KEY)==="1"}catch(_){return false}})();
+function syncLineBar(){consoleEl.classList.toggle("min",linesMin);
+  const cur=focusKey?`<i style="background:${LINES[focusKey].color}"></i>${LINES[focusKey].code}`:"All lines";
+  ctog.innerHTML=`<span class="cur">${cur}</span><span aria-hidden="true">${linesMin?"▸":"◂"}</span>`;
+  ctog.setAttribute("aria-expanded",String(!linesMin));
+  ctog.setAttribute("aria-label",linesMin?"Show all the line buttons":"Fold the line buttons away");ctog.title=linesMin?"Show lines":"Hide lines";labelsDirty=true}
+ctog.onclick=()=>{linesMin=!linesMin;try{linesMin?localStorage.setItem(LINES_MIN_KEY,"1"):localStorage.removeItem(LINES_MIN_KEY)}catch(_){}syncLineBar()};
+syncLineBar();
 function lineBounds(key){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   for(const r of LINES[key].routes)for(const p of r.anc){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])}
   const pad=60;return{x0:x0-pad,y0:y0-pad,x1:x1+pad+50,y1:y1+pad}}
@@ -1115,7 +1135,7 @@ function setFocus(key){
   if(key)trackG.appendChild(lineEls[key].track);
   for(const t of trains)applyTrainClass(t);
   if(selected&&key&&selected.L.key!==key)closeCard();
-  $("focusnote").innerHTML=key?`Showing <b>${LINES[key].name}</b> only`:"";
+  $("focusnote").innerHTML=key?`Showing <b>${LINES[key].name}</b> only`:"";syncLineBar();
   renderAlerts();
   (key?chips[key]:allChip).scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"});   // phone: keep the active chip in view
   if(key){const b=lineBounds(key);flyTo(fitBox(b))}
