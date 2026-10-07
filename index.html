@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Metra live network</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>Metra live network</title>
 <style>
 :root{
-  --bg:#0E1A25;        /* night field */
-  --lake:#0A1620;
-  --shore:#1E3A4C;
+  --bg:#1B2C3A;        /* land */
+  --lake:#050C14;
+  --shore:#4B7896;
   --dot:rgba(140,170,195,.07);
   --ink:#E3EAF0;
   --muted:#8497A8;
@@ -23,8 +23,10 @@
   --err:#F0766A;
   --tw:3px;            /* track width, set from zoom */
   --sans:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
-  --fade:rgba(14,26,37,0);
-  --lakelbl:#1D3444;
+  --fade:rgba(27,44,58,0);
+  --lakelbl:#2A4A62;
+  --wave:#8DB8D8;     /* water glints */
+  --wmul:.68;
   --term:#22384A;
   --hover:rgba(255,255,255,.06);
   --pressed:rgba(255,255,255,.09);
@@ -35,8 +37,8 @@
 /* light theme: same layout and line colours, daylight surfaces */
 :root[data-theme="light"]{
   --bg:#EEF2F5;
-  --lake:#D9E6EF;
-  --shore:#A6BFD0;
+  --lake:#B9D1E4;
+  --shore:#6F96B3;
   --dot:rgba(40,62,84,.09);
   --ink:#16222E;
   --muted:#5A6A79;
@@ -47,7 +49,9 @@
   --warn:#A96E12;
   --err:#C23E36;
   --fade:rgba(238,242,245,0);
-  --lakelbl:#9DB5C6;
+  --lakelbl:#7E9DB5;
+  --wave:#FFFFFF;
+  --wmul:1;
   --term:#FFFFFF;
   --hover:rgba(20,34,46,.06);
   --pressed:rgba(20,34,46,.09);
@@ -56,7 +60,7 @@
   color-scheme:light;
 }
 :root[data-theme="light"] .state.live i{box-shadow:0 0 0 3px rgba(27,135,82,.15)}
-:root[data-theme="light"] .train .glow{opacity:.14}
+:root[data-theme="light"] .train .glow{opacity:.1}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden;
   -webkit-font-smoothing:antialiased}
@@ -76,6 +80,43 @@ svg#labels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
 .mark{display:flex;align-items:baseline;gap:10px}
 .mark b{font-size:21px;font-weight:700;letter-spacing:.01em}
 .mark span{font-size:14px;color:var(--muted)}
+.mark{align-items:center}
+/* ---------- welcome panel + its corner button ---------- */
+#helpBtn,.ibtn{width:26px;height:26px;border-radius:50%;border:1px solid var(--edge);background:var(--soft);color:var(--muted);
+  font-size:15px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex:none;
+  transition:color .2s,background .2s,box-shadow .4s,opacity 1.2s ease}
+#helpBtn:hover,.ibtn:hover{color:var(--ink);background:var(--pressed)}
+.mark .tools{display:flex;gap:6px;margin-left:2px}
+.ibtn svg{width:15px;height:15px}
+.theme svg *{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+:root[data-theme="light"] .theme .sun,:root:not([data-theme="light"]) .theme .moon{display:none}
+#helpBtn.catch{box-shadow:0 0 0 6px rgba(95,211,155,.22);color:var(--ink)}
+#introVeil{position:absolute;inset:0;background:rgba(5,12,20,.38);opacity:0;pointer-events:none;transition:opacity .45s ease;z-index:20}
+:root[data-theme="light"] #introVeil{background:rgba(20,34,46,.16)}
+#introVeil.on{opacity:1;pointer-events:auto}
+#intro{position:absolute;left:50%;top:50%;width:min(470px,calc(100vw - 24px));max-height:calc(100vh - 40px);overflow-y:auto;
+  background:var(--panel);border:1px solid var(--edge);border-radius:14px;box-shadow:var(--shadow);padding:22px 24px 18px;z-index:21;
+  transform:translate(-50%,-50%);transform-origin:0 0;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+#intro[hidden]{display:none}
+#intro.anim{transition:transform .55s cubic-bezier(.6,0,.2,1),opacity .5s ease,border-radius .55s}
+#intro .kick{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--live);font-weight:600;display:flex;align-items:center;gap:7px}
+#intro .kick i{width:7px;height:7px;border-radius:50%;background:var(--live)}
+#intro h2{margin:6px 0 10px;font-size:26px;line-height:1.1;font-weight:700}
+#intro p{margin:0 0 11px;font-size:15.5px;line-height:1.45;color:var(--ink)}
+#intro p.why{color:var(--muted)}
+#intro ul{list-style:none;margin:14px 0 16px;padding:12px 0 0;border-top:1px solid var(--edge);display:grid;gap:8px}
+#intro li{display:grid;grid-template-columns:88px 1fr;gap:10px;font-size:14.5px;line-height:1.35}
+#intro li b{color:var(--muted);font-weight:600}
+#intro .foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#intro .go{height:36px;padding:0 18px;border-radius:9px;border:0;background:var(--live);color:#06140D;font-size:15px;font-weight:700;cursor:pointer}
+:root[data-theme="light"] #intro .go{color:#fff}
+#intro .go:hover{filter:brightness(1.08)}
+#intro label{display:flex;align-items:center;gap:7px;font-size:14px;color:var(--muted);cursor:pointer;user-select:none}
+#intro label input{width:16px;height:16px;accent-color:var(--live);margin:0}
+#intro .hint{flex-basis:100%;font-size:13px;color:var(--muted);margin-top:2px}
+#intro .x{position:absolute;right:10px;top:10px;background:none;border:0;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:3px 6px;border-radius:6px}
+#intro .x:hover{color:var(--ink);background:var(--hover)}
+@media (max-width:760px){#intro{padding:18px 18px 14px}#intro h2{font-size:22px}#intro li{grid-template-columns:76px 1fr}}
 .ops{display:flex;align-items:center;gap:18px;font-size:14px;color:var(--muted);white-space:nowrap}
 .ops b{color:var(--ink);font-weight:600}
 .state{display:flex;align-items:center;gap:8px;color:var(--ink);font-weight:600;font-size:15px}
@@ -94,6 +135,8 @@ svg#labels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
 .next .trackc{fill:none;stroke:var(--faint);stroke-width:2.4}
 .next .prog{fill:none;stroke:var(--muted);stroke-width:2.4;stroke-dasharray:37.7;transition:stroke-dashoffset .9s linear}
 .clock{font-variant-numeric:tabular-nums;color:var(--ink)}
+#updated{display:none} body.trouble #updated{display:inline}
+.state{cursor:default}
 
 /* ---------- line console ---------- */
 .console{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:4px;
@@ -150,33 +193,102 @@ body.focused .focusnote{display:block}
   border:1px solid var(--edge);border-radius:10px;padding:5px}
 .zoom button{height:30px;min-width:32px;border:0;border-radius:7px;background:none;cursor:pointer;
   font-size:18px;font-weight:600;color:var(--ink);padding:0 9px}
-.zoom button.fit,.zoom button.theme{font-size:14px}
+.zoom button.fit{display:inline-flex;align-items:center;justify-content:center}
+.zoom button.fit svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .zoom .sep{width:1px;background:var(--edge);margin:4px 2px}
 .zoom button:hover{background:var(--hover)}
 .zoom button[disabled]{opacity:.35;cursor:default;background:none}
+.zoom button.snd{display:flex;align-items:center;gap:6px;font-size:14px;padding:0 10px 0 8px}
+.snd svg{flex:none;width:16px;height:16px}
+.snd svg path{stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.snd svg .sp{fill:currentColor}
+.snd svg .x{display:none}
+.snd[aria-pressed="false"]{color:var(--muted)}
+.snd[aria-pressed="false"] .w1,.snd[aria-pressed="false"] .w2{display:none}
+.snd[aria-pressed="false"] .x{display:block}
+.snd.wait .w1,.snd.wait .w2{opacity:.4}
+
+/* ---------- ambient: controls recede after ~10 s without input ---------- */
+.console,.zoom,#fstrip{transition:opacity 1.2s ease}
+body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.32}
+
+/* ---------- line bullet (sign-style line code) ---------- */
+.bullet{display:inline-flex;align-items:center;justify-content:center;height:19px;padding:0 5px;border-radius:4px;font-size:11.5px;
+  font-weight:700;letter-spacing:.02em;flex:none;line-height:1}
+.kick2{font-size:11px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
 
 /* ---------- floating train overlay ---------- */
-#card{position:absolute;left:0;top:0;width:300px;background:var(--panel);border:1px solid var(--edge);
-  border-radius:10px;padding:11px 13px 12px;display:none;font-size:14px;will-change:transform;
-  box-shadow:var(--shadow)}
+#card{position:absolute;left:0;top:0;width:276px;background:var(--panel);border:1px solid var(--edge);border-radius:12px;padding:0;
+  display:none;font-size:14px;will-change:transform;box-shadow:var(--shadow);overflow:hidden;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 #card.on{display:block}
-#card .hd{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-#card .bar{width:4px;align-self:stretch;border-radius:2px}
-#card .ttl{font-weight:700;font-size:16px;line-height:1.15}
-#card .sub{color:var(--muted);font-size:13px}
-#card .x{margin-left:auto;align-self:flex-start;background:none;border:0;cursor:pointer;color:var(--muted);
-  font-size:18px;line-height:1;padding:2px 4px;border-radius:5px}
+#card .hd{display:flex;align-items:flex-start;gap:9px;padding:10px 6px 0 12px}
+#card .hd .bullet{margin-top:1px}
+#card .ttl{font-weight:600;font-size:14.5px;line-height:1.2}
+#card .sub{color:var(--muted);font-size:13px;line-height:1.25}
+#card .x{margin-left:auto;background:none;border:0;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;padding:2px 6px;border-radius:5px}
 #card .x:hover{color:var(--ink);background:var(--hover)}
-#card dl{margin:0;display:grid;grid-template-columns:88px 1fr;gap:4px 8px}
-#card dt{color:var(--muted);font-size:13px;padding-top:1px}
-#card dd{margin:0;min-width:0;overflow-wrap:anywhere}
-#card .na{color:var(--faint)}
-#card .ok{color:var(--live)} #card .wn{color:var(--warn)}
-#card .foot{display:flex;gap:6px;margin-top:10px}
-#card .foot button{flex:1;height:28px;border-radius:7px;border:1px solid var(--edge);background:var(--soft);
-  cursor:pointer;font-size:13.5px;font-weight:600}
-#card .foot button:hover{background:var(--pressed)}
-#card .foot button[aria-pressed="true"]{border-color:var(--live);color:var(--live)}
+#card .dest{padding:8px 12px 10px}
+#card .dest b{display:block;font-size:20px;line-height:1.15;font-weight:700;margin-top:2px}
+#card .rows{border-top:1px solid var(--edge);padding:8px 12px 9px;display:grid;gap:5px}
+#card .row{display:grid;grid-template-columns:50px 1fr auto;gap:8px;align-items:baseline}
+#card .row .v{font-weight:600;min-width:0;overflow-wrap:anywhere}
+#card .row .t{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;white-space:nowrap}
+#card .row .t b{color:var(--ink);font-weight:700;font-size:14px}
+#card .ft{display:flex;align-items:center;gap:8px;padding:6px 7px 6px 12px;border-top:1px solid var(--edge);font-size:12.5px;color:var(--muted)}
+#card .ft .wn{color:var(--warn)}
+#card .fl{margin-left:auto;height:24px;padding:0 10px;border-radius:12px;border:1px solid var(--edge);background:var(--soft);cursor:pointer;
+  font-size:12.5px;font-weight:600;color:var(--muted);white-space:nowrap}
+#card .fl:hover{color:var(--ink)}
+#card .fl[aria-pressed="true"]{border-color:var(--live);color:var(--live)}
+
+/* ---------- station popover ---------- */
+#spop{position:absolute;left:0;top:0;width:318px;display:none;background:var(--panel);border:1px solid var(--edge);border-radius:12px;
+  box-shadow:var(--shadow);padding:10px 12px 11px;z-index:7;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+#spop.on{display:block}
+#spop .nm{font-weight:700;font-size:17px;line-height:1.2;padding-right:22px}
+#spop .ln{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 2px}
+#spop .x{position:absolute;right:6px;top:6px;background:none;border:0;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;padding:2px 6px;border-radius:5px}
+#spop .x:hover{color:var(--ink);background:var(--hover)}
+#spop .star{width:100%;height:32px;margin-top:10px;border-radius:8px;border:1px solid var(--edge);background:var(--soft);cursor:pointer;
+  font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:7px;color:var(--ink)}
+#spop .star:hover{background:var(--pressed)}
+#spop .star[aria-pressed="true"]{border-color:var(--ink)}
+#spop .star:disabled{opacity:.45;cursor:default;background:var(--soft)}
+#spop .note{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.35}
+
+/* ---------- favorite stations board (a small departure sign) ---------- */
+#board{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));top:calc(58px + env(safe-area-inset-top,0px));width:318px;
+  max-height:calc(100% - 150px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--edge);border-radius:12px;
+  box-shadow:var(--shadow);z-index:3;overflow:hidden;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+#board .bh{display:flex;align-items:center;gap:8px;padding:8px 6px 7px 12px;flex:none}
+#board .bh .cnt{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+#board .bh .simtag{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#A98BF0;border:1px solid currentColor;border-radius:4px;padding:1px 4px}
+:root[data-theme="light"] #board .bh .simtag{color:#6D4FC4}
+#board .bh .col{margin-left:auto;background:none;border:0;cursor:pointer;color:var(--muted);font-size:15px;line-height:1;padding:3px 7px;border-radius:5px}
+#board .bh .col:hover{color:var(--ink);background:var(--hover)}
+#board .bl{overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--edge)}
+#board.min{width:auto} #board.min .bl,#board.min .bf{display:none}
+.fav{padding:9px 12px 10px;border-bottom:1px solid var(--edge)}
+.fav:last-child{border-bottom:0}
+.fav .fn{display:flex;align-items:center;gap:7px;min-width:0}
+.fav .go{background:none;border:0;padding:0;font-size:17px;font-weight:700;cursor:pointer;text-align:left;color:var(--ink);min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fav .go:hover{text-decoration:underline;text-decoration-color:var(--faint);text-underline-offset:3px}
+.fav .rm{margin-left:auto;background:none;border:0;cursor:pointer;color:var(--muted);font-size:15px;padding:2px 5px;border-radius:5px;opacity:0;flex:none}
+.fav:hover .rm,.fav:focus-within .rm{opacity:1}
+.fav .rm:hover{color:var(--ink);background:var(--hover)}
+@media (hover:none){.fav .rm{opacity:.7}}
+.arr{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;margin-top:6px;font-size:14px}
+.arr .to{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.arr .to .no{color:var(--muted);font-variant-numeric:tabular-nums;margin-right:4px}
+.arr .when{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;color:var(--muted);font-size:12.5px}
+.arr .when b{color:var(--ink);font-size:15px;font-weight:700;margin-right:5px}
+.arr.pred .bullet{opacity:.5}
+.arr .gps{color:var(--muted)}
+.fav .none,.bmsg{margin-top:5px;font-size:13px;color:var(--muted);line-height:1.35}
+.bmsg{margin:0;padding:10px 12px 12px}
+#board .bf{flex:none;padding:6px 12px 7px;font-size:11.5px;color:var(--muted);border-top:1px solid var(--edge);line-height:1.35}
+#fstrip{display:none}
 
 /* ---------- tooltip ---------- */
 #tip{position:absolute;pointer-events:none;background:var(--panel);border:1px solid var(--edge);border-radius:8px;
@@ -185,31 +297,50 @@ body.focused .focusnote{display:block}
 #tip .lc{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px;vertical-align:-1px}
 
 /* ---------- notice ---------- */
-#notice{position:absolute;left:50%;top:60px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--edge);
-  border-radius:9px;padding:9px 14px;font-size:14px;max-width:460px;text-align:center;display:none;color:var(--ink)}
-#notice.on{display:block}
+#notice{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));top:calc(56px + env(safe-area-inset-top,0px));background:var(--panel);
+  border:1px solid var(--edge);border-radius:18px;padding:5px 6px 5px 14px;font-size:14px;max-width:min(620px,calc(100vw - 28px));display:none;
+  color:var(--ink);align-items:center;gap:6px 12px;flex-wrap:wrap;z-index:4;box-shadow:var(--shadow)}
+#notice.on{display:flex}
+#notice .msg{flex:1 1 220px;min-width:0;line-height:1.3;padding:3px 0}
 #notice span{color:var(--muted)}
-#notice .acts{display:flex;gap:8px;justify-content:center;margin-top:8px}
-#notice button{height:30px;padding:0 12px;border-radius:7px;border:1px solid var(--edge);background:var(--soft);cursor:pointer;
-  font-size:14px;font-weight:600}
+#notice .acts{display:flex;gap:6px;flex:none;margin-left:auto}
+#notice button{height:28px;padding:0 12px;border-radius:14px;border:1px solid var(--edge);background:var(--soft);cursor:pointer;
+  font-size:13.5px;font-weight:600;white-space:nowrap}
 #notice button:hover{background:var(--pressed)}
 #notice button.go{border-color:#A98BF0;color:#A98BF0}
 :root[data-theme="light"] #notice button.go{border-color:#6D4FC4;color:#6D4FC4}
-body.simmode #notice{top:auto;bottom:calc(64px + env(safe-area-inset-bottom,0px));padding:7px 12px}
-body.simmode #notice .acts{display:inline-flex;margin:0 0 0 10px;vertical-align:middle}
-body.simmode #notice button{height:26px;font-size:13px}
 
 /* ---------- map ---------- */
 .lake{fill:var(--lake)}
-.shore{fill:none;stroke:var(--shore);stroke-width:1.2;vector-effect:non-scaling-stroke}
+.border{fill:none;stroke:var(--shore);stroke-width:1.5;stroke-dasharray:7 5;stroke-linecap:round;vector-effect:non-scaling-stroke;opacity:.9}
+.stlbl{font-family:var(--sans);font-size:13px;font-weight:600;fill:var(--lakelbl);letter-spacing:.32em}
+:root[data-theme="light"] .stlbl{fill:#97A8B6}
+.shore{fill:none;stroke:var(--shore);stroke-width:1.8;vector-effect:non-scaling-stroke}
 .lakelbl{font-family:var(--sans);font-size:26px;font-weight:500;fill:var(--lakelbl);letter-spacing:.3em}
+/* lake water: slow drifting glints + a few soft ripples. They fade in and out as they drift, so nothing pops.
+   Glints update ~12x a second (steps) because the motion is slow; that keeps the long-running cost low. */
+.water{pointer-events:none}
+.wv{fill:none;stroke:var(--wave);stroke-width:1.4px;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;opacity:0;
+  animation:wv var(--dur,16s) steps(48) var(--dl,0s) infinite both}
+@keyframes wv{
+  0%{opacity:0;transform:translate(0,0)}
+  25%{opacity:calc(var(--a) * var(--wmul));transform:translate(9px,-1.6px)}
+  50%{opacity:calc(var(--a) * var(--wmul) * .7);transform:translate(18px,0)}
+  75%{opacity:calc(var(--a) * var(--wmul));transform:translate(27px,1.6px)}
+  100%{opacity:0;transform:translate(36px,0)}}
+.rp{fill:none;stroke:var(--wave);stroke-width:1.1px;vector-effect:non-scaling-stroke;opacity:0;transform-box:fill-box;transform-origin:center;
+  animation:rp var(--dur,14s) linear var(--dl,0s) infinite both}
+.swl{animation:swl var(--dur) linear infinite}
+@keyframes swl{from{transform:translateX(0)}to{transform:translateX(var(--wl))}}
+.swl path{fill:none;stroke:var(--wave);stroke-linecap:round;vector-effect:non-scaling-stroke}
+@keyframes rp{0%{opacity:0;transform:scale(.25)}18%{opacity:calc(.55 * var(--wmul))}100%{opacity:0;transform:scale(2.6)}}
 .track{fill:none;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-width:var(--tw);
   transition:opacity .35s}
 .stn{fill:var(--bg);stroke-width:1.4;vector-effect:non-scaling-stroke}
 .pill{fill:var(--bg);stroke:var(--ink);stroke-width:1.4;vector-effect:non-scaling-stroke}
 .term{fill:var(--term);stroke:var(--ink);stroke-width:2;vector-effect:non-scaling-stroke}
 .dim{opacity:.13}
-.stnhit{fill:transparent;cursor:default}
+.stnhit{fill:transparent;cursor:pointer}
 .lbl{font-family:var(--sans);font-size:12.5px;font-weight:500;fill:var(--ink);paint-order:stroke;stroke:var(--bg);
   stroke-width:3.2px;stroke-linejoin:round;dominant-baseline:central}
 .lbl.t0{font-size:14px;font-weight:700}
@@ -226,7 +357,7 @@ body.simmode #notice button{height:26px;font-size:13px}
 .trail.bye{opacity:0;transition:opacity .8s}
 .train{cursor:pointer;transition:opacity .35s}
 .train .hit{fill:transparent}
-.train .glow{opacity:.2}
+.train .glow{opacity:.15}
 .train.stale .glow{opacity:0}
 .train .body{stroke:var(--bg);stroke-width:1.7;stroke-linejoin:round}
 .train .ring{fill:none;stroke-width:1.4;opacity:0}
@@ -264,15 +395,28 @@ button{touch-action:manipulation}
   .zoom{right:calc(10px + env(safe-area-inset-right,0px));bottom:calc(62px + env(safe-area-inset-bottom,0px))}
   .zoom button{height:36px;min-width:38px}
   /* train details become a sheet above the line picker */
-  #card{left:8px;right:8px;width:auto;top:auto;bottom:calc(58px + env(safe-area-inset-bottom,0px));transform:none!important;
-    max-height:52vh;overflow-y:auto}
-  #card dl{grid-template-columns:96px 1fr}
-  #notice{top:calc(54px + env(safe-area-inset-top,0px));max-width:calc(100vw - 24px);font-size:13px}
-  body.sheet .zoom{display:none}
+  #card,#spop{left:8px;right:8px;width:auto;top:auto;bottom:calc(58px + env(safe-area-inset-bottom,0px));transform:none!important;
+    max-height:56vh;overflow-y:auto}
+  #notice{left:8px;right:8px;max-width:none;top:calc(50px + env(safe-area-inset-top,0px));font-size:13px;border-radius:14px}
+  body.sheet .zoom,body.pop .zoom,body.boardsheet .zoom{display:none}
+  /* favorites: a one-line strip above the line picker; tap it for the full board */
+  #board{display:none;left:8px;right:8px;top:auto;bottom:calc(58px + env(safe-area-inset-bottom,0px));width:auto!important;max-height:56vh;z-index:6}
+  body.boardsheet #board{display:flex}
+  #board.min .bl,#board.min .bf{display:block}
+  #fstrip{position:absolute;left:8px;right:8px;bottom:calc(56px + env(safe-area-inset-bottom,0px));height:38px;align-items:center;gap:8px;
+    padding:0 10px 0 11px;background:var(--panel);border:1px solid var(--edge);border-radius:10px;font-size:14px;z-index:2;cursor:pointer;text-align:left;width:auto}
+  body.hasfav #fstrip{display:flex}
+  body.sheet #fstrip,body.pop #fstrip,body.boardsheet #fstrip{display:none}
+  #fstrip .s{font-weight:700;white-space:nowrap;flex:none}
+  #fstrip .i{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+  #fstrip .i b{color:var(--ink)}
+  #fstrip .n{font-size:12px;color:var(--muted);flex:none}
+  body.hasfav .zoom{bottom:calc(102px + env(safe-area-inset-bottom,0px))}
 }
 @media (max-width:420px){ #updated{display:none} }
 @media (hover:none){ #tip{display:none} }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (prefers-reduced-motion:reduce){.wv{opacity:calc(.3 * var(--wmul))}}
 </style>
 </head>
 <body>
@@ -282,12 +426,16 @@ button{touch-action:manipulation}
 </div>
 
 <div class="top">
-  <div class="mark"><b>Metra</b><span>Live network, Chicago region</span></div>
+  <div class="mark"><b>Metra</b><span>Live network, Chicago region</span>
+    <div class="tools">
+      <button id="helpBtn" aria-label="What is this? Open the welcome guide" title="What is this? (?)" aria-controls="intro">?</button>
+      <button id="snd" class="ibtn snd" aria-pressed="true" aria-label="Ambient sound" title="Ambient sound (M)"><svg viewBox="0 0 20 20" aria-hidden="true"><path class="sp" d="M3 7.6h3.1L10.4 4v12l-4.3-3.6H3z"/><path class="w1" d="M13.2 7.6c.9.6 1.4 1.4 1.4 2.4s-.5 1.8-1.4 2.4"/><path class="w2" d="M15.5 5.2c1.7 1.2 2.6 2.9 2.6 4.8s-.9 3.6-2.6 4.8"/><path class="x" d="M13.2 7.8l4.6 4.4M17.8 7.8l-4.6 4.4"/></svg></button>
+      <button id="theme" class="ibtn theme" aria-label="Switch to light mode" title="Switch to light mode (T)"><svg viewBox="0 0 20 20" aria-hidden="true"><g class="sun"><circle cx="10" cy="10" r="3.4"/><path d="M10 2.6v1.8M10 15.6v1.8M2.6 10h1.8M15.6 10h1.8M4.8 4.8l1.3 1.3M13.9 13.9l1.3 1.3M4.8 15.2l1.3-1.3M13.9 6.1l1.3-1.3"/></g><path class="moon" d="M15.6 12.4A6.2 6.2 0 0 1 7.6 4.4a6.2 6.2 0 1 0 8 8z"/></svg></button>
+    </div></div>
   <div class="ops">
     <button class="abtn" id="abtn" aria-expanded="false" aria-controls="apanel" title="Metra service alerts"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="ico" d="M8 1.8 L15 14 H1 Z M8 6.2 V9.6 M8 11.6 V11.7"/></svg><span id="acount"></span><span class="aw" id="aword"></span></button>
     <span class="state" id="state"><i></i><span id="stateText">Connecting</span></span>
     <span id="updated">Waiting for first report</span>
-    <span class="next" id="next" title="Metra publishes new positions about every 30 seconds"><svg viewBox="0 0 16 16"><circle class="trackc" cx="8" cy="8" r="6"/><circle class="prog" id="prog" cx="8" cy="8" r="6"/></svg><span id="nextText">Next check soon</span></span>
     <span><b id="count">–</b> <span class="cnt-word">trains reporting</span><span class="short">trains</span></span>
     <span class="clock" id="clock"></span>
   </div>
@@ -299,15 +447,37 @@ button{touch-action:manipulation}
 <div class="zoom">
   <button id="zout" title="Zoom out (−)" aria-label="Zoom out">−</button>
   <button id="zin" title="Zoom in (+)" aria-label="Zoom in">+</button>
-  <button id="fit" class="fit" title="Show the whole network (0)"><span class="long">Whole network</span><span class="short">Fit</span></button>
-  <span class="sep" aria-hidden="true"></span>
-  <button id="theme" class="theme" aria-pressed="false" title="Switch between dark and light (T)">Light</button>
+  <button id="fit" class="fit" title="Show the whole network (0)" aria-label="Show the whole network"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg></button>
 </div>
 
 <div id="card" role="dialog" aria-label="Train details"></div>
+<div id="spop" role="dialog" aria-label="Station"></div>
+<section id="board" aria-label="Your stations"></section>
+<button id="fstrip" aria-label="Open your stations"></button>
 <div id="apanel" role="dialog" aria-label="Service alerts"><div class="ahd"><b>Service alerts</b><span id="ascope"></span><button id="aclose" aria-label="Close alerts">×</button></div><div class="alist" id="alist"></div></div>
 <div id="notice" role="status"></div>
 <div id="tip"></div>
+<div id="introVeil"></div>
+<div id="intro" role="dialog" aria-modal="true" aria-labelledby="introTitle" hidden>
+  <button class="x" aria-label="Close welcome guide">×</button>
+  <div class="kick"><i></i>Live</div>
+  <h2 id="introTitle">Every Metra train, right now</h2>
+  <p>This is a live map of the whole Metra commuter rail system around Chicago. Each arrow is a real train, placed from its own GPS report and updated about every 30 seconds. The fading trail shows where it just was.</p>
+  <p class="why">I built it for fun. I wanted something calm to leave running on my second monitor, like an aquarium, except it's Chicago's trains moving around instead of fish.</p>
+  <ul>
+    <li><b>Move</b><span>Drag to pan. Scroll or pinch to zoom. The ⛶ button (or <em>0</em>) brings the whole network back.</span></li>
+    <li><b>Trains</b><span>Click any train to see where it is and where it's heading.</span></li>
+    <li><b>Stations</b><span>Click a station, then ☆, to pin it to your board (up to 5) with Metra's live arrival times.</span></li>
+    <li><b>Lines</b><span>Pick a line at the bottom to focus on just that one.</span></li>
+    <li><b>Alerts</b><span>The ⚠ button at the top shows Metra's service alerts.</span></li>
+    <li><b>Mood</b><span>Sound and light/dark sit next to the title. Keys: <em>M</em> sound, <em>T</em> theme.</span></li>
+  </ul>
+  <div class="foot">
+    <button class="go">Start watching</button>
+    <label><input type="checkbox" id="introHide">Don't show this on start</label>
+    <span class="hint">You can open this again any time with the ? next to the title.</span>
+  </div>
+</div>
 
 <script>
 (()=>{
@@ -505,7 +675,7 @@ for(const rec of STN.values()){
   rec.tier=TERMINALS[rec.id]?0:(rec.terminus||rec.lines.size>1)?1:2;
 }
 // terminal names get a deliberate side, and the most boxed-in terminal is placed first
-const TSIDE={"Union Station":[[1,0],-3],"Ogilvie":[[-1,0],-2],"LaSalle St":[[1,0],-1],"Millennium":[[1,0],0]};
+const TSIDE={"LaSalle St":[[1,0],-4],"Union Station":[[1,0],-3],"Ogilvie":[[-1,0],-2],"Millennium":[[1,0],0]};
 for(const id in TSIDE){const r=STN.get(id);r.n=TSIDE[id][0];r.torder=TSIDE[id][1]}
 STN.get("Union Station").label="Union";   // as on Metra's own diagram; full name in tooltip and details
 // spatially even priority: midpoints between already-important stations come first
@@ -528,8 +698,56 @@ const pat=el("pattern",{id:"dots",width:30,height:30,patternUnits:"userSpaceOnUs
 el("circle",{cx:15,cy:15,r:1.1,fill:"var(--dot)"},pat);
 el("rect",{x:-3000,y:-3000,width:7200,height:7500,fill:"url(#dots)"},world);
 const LAKE="M800,-3000 L800,90 L892,182 L892,560 L975,643 L1048,643 L1048,935 L1128,1015 L1128,1250 L1240,1362 L4200,1362 L4200,-3000 L800,-3000 Z";
+/* ---- state borders (drawn under the lake, so the lake trims them at the shoreline) ----
+   Schematic, not geographic: each border sits where it really falls between stations.
+   Wisconsin: between Winthrop Harbor (IL) and Kenosha (WI). Indiana: east of the
+   South Chicago branch's last stop (93rd St, IL), running south from the lakeshore. */
+const borderG=el("g",{"aria-hidden":"true"},world),STATE_LBL=[];
+{const k=STN.get("Kenosha").xy,w=STN.get("Winthrop Harbor").xy,wy=(k[1]+w[1])/2;
+ el("path",{class:"border",d:`M-3000,${wy.toFixed(1)} L900,${wy.toFixed(1)}`},borderG);
+ const SL=(txt,x,y,dx,dy,anchor)=>{const t=el("text",{class:"stlbl","text-anchor":anchor},borderG);t.textContent=txt;STATE_LBL.push({t,x,y,dx,dy})};
+ SL("WISCONSIN",430,wy,0,-9,"middle");SL("ILLINOIS",430,wy,0,19,"middle");
+ const sc=STN.get("93rd St|South Chicago")||STN.get("93rd St"),ix=Math.max(1150,(sc?sc.xy[0]:1092)+50);
+ el("path",{class:"border",d:`M${ix},1000 L${ix},4500`},borderG);
+ SL("INDIANA",ix,1420,12,0,"start");}
 el("path",{class:"lake",d:LAKE},world);
 el("path",{class:"shore",d:"M800,-3000 L800,90 L892,182 L892,560 L975,643 L1048,643 L1048,935 L1128,1015 L1128,1250 L1240,1362 L4200,1362"},world);
+/* ---- lake water ----
+   ~110 small glints on a jittered grid + ~11 ripples, generated once from a fixed seed (same water every load),
+   clipped to the lake. Covers everything you can reach when zoomed all the way out. */
+(function lakeWater(){
+  let seed=20261006;
+  const rnd=()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+  const nums=LAKE.match(/-?\d+/g).map(Number),poly=[];for(let i=0;i<nums.length;i+=2)poly.push([nums[i],nums[i+1]]);
+  const inside=(x,y)=>{let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];
+    if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])c=!c}return c};
+  const edge=(x,y)=>{let m=1e9;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[j],b=poly[i],dx=b[0]-a[0],dy=b[1]-a[1],l2=dx*dx+dy*dy||1;
+    let t=((x-a[0])*dx+(y-a[1])*dy)/l2;t=Math.max(0,Math.min(1,t));m=Math.min(m,Math.hypot(a[0]+dx*t-x,a[1]+dy*t-y))}return m};
+  const cp=el("clipPath",{id:"lakeclip"},defs);el("path",{d:LAKE},cp);
+  const g=el("g",{class:"water","clip-path":"url(#lakeclip)","aria-hidden":"true"},world);
+  const CW=250,CH=170;
+  for(let cy=-1250;cy<1360;cy+=CH)for(let cx=820;cx<2750;cx+=CW){
+    const x=cx+rnd()*CW,y=cy+rnd()*CH,humps=2+Math.floor(rnd()*3),len=humps*12;
+    const dur=13+rnd()*8,a=.35+rnd()*.5,dl=-rnd()*dur;
+    if(!inside(x,y)||!inside(x+len+40,y)||edge(x,y)<22||edge(x+len+40,y)<22)continue;
+    let d="M0,0 q6,-3.2 12,0";for(let h=1;h<humps;h++)d+=" t12,0";
+    const w=el("g",{transform:`translate(${x.toFixed(1)},${y.toFixed(1)})`},g);
+    el("path",{class:"wv",d,style:`--a:${a.toFixed(2)};--dur:${dur.toFixed(1)}s;--dl:${dl.toFixed(1)}s`},w);
+  }
+  for(let k=0,tries=0;k<11&&tries<400;tries++){
+    const x=880+rnd()*1700,y=-1100+rnd()*2350;if(!inside(x,y)||edge(x,y)<70)continue;k++;
+    const dur=11+rnd()*7;
+    el("ellipse",{class:"rp",cx:x.toFixed(1),cy:y.toFixed(1),rx:10,ry:3.6,style:`--dur:${dur.toFixed(1)}s;--dl:${(-rnd()*dur).toFixed(1)}s`},g);
+  }
+
+  // rolling swells: two layers of long wave lines drifting at different speeds (parallax)
+  [{gap:58,amp:2.4,wl:84,dur:52,a:.2,sw:1,dir:1},{gap:58,amp:3.6,wl:132,dur:38,a:.3,sw:1.3,dir:-1,off:29}].forEach(L=>{
+    const lg=el("g",{class:"swl",style:`--dur:${L.dur}s;--wl:${L.dir*L.wl}px`},g);
+    for(let y=-1300+(L.off||0);y<1380;y+=L.gap){const yy=y+(rnd()-.5)*14,x0=760-L.wl*(1+Math.floor(rnd()*2))-rnd()*L.wl;
+      let d=`M${x0.toFixed(1)},${yy.toFixed(1)} q${L.wl/4},${-L.amp} ${L.wl/2},0`;for(let x=x0+L.wl/2;x<2900;x+=L.wl/2)d+=` t${L.wl/2},0`;
+      let da=[];for(let k=0;k<6;k++)da.push((40+rnd()*170).toFixed(0),(25+rnd()*110).toFixed(0));      // broken crests, not ruled lines
+      el("path",{d,style:`stroke-width:${L.sw}px;stroke-opacity:calc(${(L.a*(.6+rnd()*.4)).toFixed(3)} * var(--wmul));stroke-dasharray:${da.join(" ")};stroke-dashoffset:${(-rnd()*600).toFixed(0)}`},lg)}});
+})();
 el("text",{class:"lakelbl",x:1150,y:420,transform:"rotate(90 1150 420)","text-anchor":"middle"},world).textContent="Lake Michigan";
 
 const trackG=el("g",{},world),stnG=el("g",{},world),trailG=el("g",{},world),trainG=el("g",{},world);
@@ -537,18 +755,22 @@ const lineEls={};
 for(const key of ORDER){const L=LINES[key],g=el("g",{},trackG);
   for(const r of L.routes)el("path",{class:"track",d:"M"+r.anc.map(p=>p.join(",")).join("L"),stroke:L.color},g);
   lineEls[key]={track:g,stns:[]};}
+const gRec=new WeakMap();
 for(const rec of STATIONS){
   const g=el("g",{},stnG);rec.g=g;
   if(rec.tier===0){rec.kind="term";rec.shape=el("rect",{class:"term"},g)}
   else if(rec.multi){rec.kind="pill";rec.shape=el("rect",{class:"pill"},g)}
   else{const q=rec.inst[0];rec.kind="dot";rec.shape=el("circle",{class:"stn",cx:q.xy[0],cy:q.xy[1],stroke:LINES[q.key].color},g)}
-  rec.hit=el("rect",{class:"stnhit"},g);
+  rec.hit=el("rect",{class:"stnhit"},g);gRec.set(g,rec);
   g.addEventListener("pointerenter",e=>{if(!drag||!drag.moved)showStationTip(rec,e)});
   g.addEventListener("pointermove",e=>{if(!drag||!drag.moved)showStationTip(rec,e)});
   g.addEventListener("pointerleave",hideTip);
 }
 // markers keep a steady on-screen size; only the track geometry scales with zoom
+function updateStateLabels(k){for(const q of STATE_LBL){q.t.style.fontSize=(13*k).toFixed(3)+"px";
+  q.t.setAttribute("y",(q.y+q.dy*k).toFixed(2));q.t.setAttribute("x",(q.x+q.dx*k).toFixed(2))}}
 function updateMarkers(){
+  updateStateLabels(vb.w/cw());
   const k=vb.w/cw(),z=FIT_W/vb.w,rs=Math.min(4,1.8*Math.sqrt(Math.max(1,z)));
   for(const rec of STATIONS){const b=rec.box;
     if(rec.kind==="dot"){const r=rs*k;rec.shape.setAttribute("r",r.toFixed(3));rec.half=[r,r]}
@@ -568,12 +790,13 @@ let vb={x:0,y:0,w:1200,h:800},camAnim=null,following=null,selected=null,drag=nul
 const cw=()=>svg.clientWidth||window.innerWidth||1440, ch=()=>svg.clientHeight||window.innerHeight||900;
 const isNarrow=()=>cw()<=760;
 function uiInsets(){const sr=svg.getBoundingClientRect(),top=document.querySelector(".top").getBoundingClientRect();
-  let bot=0;for(const q of[$("console"),document.querySelector(".zoom")]){const r=q.getBoundingClientRect();if(r.height)bot=Math.max(bot,sr.bottom-r.top)}
-  return{top:Math.max(40,top.bottom-sr.top),bot:Math.max(40,bot)}}
-function fitBox(b){const W=cw(),H=ch(),I=uiInsets(),TOP_UI=I.top,BOT_UI=I.bot,side=isNarrow()?12:40,availH=H-TOP_UI-BOT_UI-16,availW=W-side;
+  let bot=0;for(const q of[$("console"),document.querySelector(".zoom"),$("fstrip")]){const r=q.getBoundingClientRect();if(r.height)bot=Math.max(bot,sr.bottom-r.top)}
+  let left=0;const bd=$("board");if(!isNarrow()&&bd.offsetHeight&&!bd.classList.contains("min"))left=bd.getBoundingClientRect().right-sr.left+4;
+  return{top:Math.max(40,top.bottom-sr.top),bot:Math.max(40,bot),left}}
+function fitBox(b){const W=cw(),H=ch(),I=uiInsets(),TOP_UI=I.top,BOT_UI=I.bot,side=isNarrow()?12:40,availH=H-TOP_UI-BOT_UI-16,availW=W-side-I.left;
   const s=Math.min(availW/(b.x1-b.x0),availH/(b.y1-b.y0));
-  const w=W/s,h=H/s,cx=(b.x0+b.x1)/2,cyScreen=TOP_UI+8+availH/2;
-  return{x:cx-w/2,y:(b.y0+b.y1)/2-cyScreen/s,w,h}}
+  const w=W/s,h=H/s,cx=(b.x0+b.x1)/2,cyScreen=TOP_UI+8+availH/2,cxScreen=I.left+(W-I.left)/2;
+  return{x:cx-cxScreen/s,y:(b.y0+b.y1)/2-cyScreen/s,w,h}}
 const fitAll=()=>fitBox(WORLD);
 let FIT_W=1200;
 function maxW(){return FIT_W*1.35} const MIN_W=95;
@@ -603,7 +826,7 @@ svg.addEventListener("pointerdown",e=>{if(e.button!==0||e.target.closest(".train
   hideTip();ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   try{svg.setPointerCapture(e.pointerId)}catch(_){}
   if(ptrs.size===2){startPinch();return}
-  if(ptrs.size===1)drag={x:e.clientX,y:e.clientY,vb:{...vb},moved:false}});
+  if(ptrs.size===1)drag={x:e.clientX,y:e.clientY,vb:{...vb},moved:false,target:e.target}});
 svg.addEventListener("pointermove",e=>{
   if(ptrs.has(e.pointerId))ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pinch&&ptrs.size>=2){const[a,b]=[...ptrs.values()],r=svg.getBoundingClientRect();
@@ -617,30 +840,110 @@ svg.addEventListener("pointermove",e=>{
 const endDrag=e=>{ptrs.delete(e.pointerId);
   if(pinch){if(ptrs.size<2){pinch=null;const p=[...ptrs.values()][0];   // one finger left: carry on panning from it
       drag=p?{x:p.x,y:p.y,vb:{...vb},moved:true}:null;if(!p)stage.classList.remove("drag")}return}
-  if(!drag)return;const wasClick=!drag.moved;drag=null;stage.classList.remove("drag");
-  if(wasClick&&e.type==="pointerup"&&selected)closeCard()};   // plain tap/click on empty map closes details
+  if(!drag)return;const wasClick=!drag.moved,tgt=drag.target;drag=null;stage.classList.remove("drag");
+  if(!wasClick||e.type!=="pointerup")return;
+  const g=tgt&&tgt.closest&&tgt.closest("g"),rec=g&&gRec.get(g);
+  if(rec){openStationPop(rec);return}
+  closeStationPop();closeBoardSheet();if(selected)closeCard()};   // plain tap/click on empty map closes details
 svg.addEventListener("pointerup",endDrag);svg.addEventListener("pointercancel",endDrag);
 svg.addEventListener("wheel",e=>{e.preventDefault();
   const r=svg.getBoundingClientRect(),f=Math.exp(Math.max(-60,Math.min(60,e.deltaY))*0.0022);
   const mx=following?following.shown[0]:vb.x+(e.clientX-r.left)/r.width*vb.w;
   const my=following?following.shown[1]:vb.y+(e.clientY-r.top)/r.height*vb.h;
   zoomAround(f,mx,my)},{passive:false});
-addEventListener("keydown",e=>{if(e.target.closest&&e.target.closest("input,textarea"))return;
-  if(e.key==="Escape"){if($("apanel").classList.contains("on"))closeAlerts();else if(selected)closeCard();else if(focusKey)setFocus(null)}
+addEventListener("keydown",e=>{if(e.target.closest&&e.target.closest('input:not([type="checkbox"]),textarea'))return;
+  if(e.key==="?"){e.preventDefault();introOpen?closeIntro():openIntro();return}
+  if(introOpen){if(e.key==="Escape")closeIntro();return}
+  if(e.key==="Escape"){if($("apanel").classList.contains("on"))closeAlerts();else if(spopRec)closeStationPop();else if(document.body.classList.contains("boardsheet"))closeBoardSheet();
+    else if(selected)closeCard();else if(focusKey)setFocus(null)}
   if(e.key==="+"||e.key==="=")zoomBy(1/1.35);
   if(e.key==="-"||e.key==="_")zoomBy(1.35);
   if(e.key==="0")resetView();
-  if(e.key==="t"||e.key==="T")themeBtn.click();});
+  if(e.key==="t"||e.key==="T")themeBtn.click();
+  if(e.key==="m"||e.key==="M")sndBtn.click();});
 /* ---- dark / light ---- */
 const themeBtn=$("theme");
 function setTheme(t){
   document.documentElement.dataset.theme=t;
-  themeBtn.textContent=t==="dark"?"Light":"Dark";           // the button names what it switches TO
-  themeBtn.setAttribute("aria-pressed",String(t==="light"));
-  themeBtn.title=`Switch to ${t==="dark"?"light":"dark"} mode (T)`;
+  const to=t==="dark"?"light":"dark";                         // the icon shows what it switches TO
+  themeBtn.setAttribute("aria-label",`Switch to ${to} mode`);themeBtn.title=`Switch to ${to} mode (T)`;
 }
 setTheme(matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");
-themeBtn.onclick=()=>setTheme(document.documentElement.dataset.theme==="dark"?"light":"dark");
+themeBtn.onclick=e=>{if(e)e.stopPropagation();setTheme(document.documentElement.dataset.theme==="dark"?"light":"dark")};
+/* ---- ambient brown noise ----
+   On by default, very quiet. Browsers block sound until the page is clicked/tapped/keyed once,
+   so it starts on the first interaction. A 12 s buffer is generated once, its ends crossfaded so
+   the loop has no click, then softened with a low-pass. Fades in and out; no new nodes per toggle. */
+const sndBtn=$("snd");let sndOn=true,actx=null,sndGain=null;
+function buildNoise(ctx){
+  const sr=ctx.sampleRate,n=Math.floor(sr*12),fade=Math.floor(sr*1.5),raw=new Float32Array(n+fade);
+  let last=0;for(let i=0;i<raw.length;i++){last=(last+0.02*(Math.random()*2-1))/1.02;raw[i]=last*3.5}
+  const buf=ctx.createBuffer(1,n,sr),d=buf.getChannelData(0);
+  for(let i=0;i<n;i++)d[i]=raw[i];
+  for(let i=0;i<fade;i++){const t=i/fade;d[i]=raw[i]*t+raw[n+i]*(1-t)}       // seamless loop
+  let mean=0;for(let i=0;i<n;i++)mean+=d[i];mean/=n;for(let i=0;i<n;i++)d[i]-=mean;
+  return buf}
+function startAudio(){
+  if(actx)return;
+  try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;actx=new AC()}catch(_){actx=null;return}
+  const src=actx.createBufferSource();src.buffer=buildNoise(actx);src.loop=true;
+  const lp=actx.createBiquadFilter();lp.type="lowpass";lp.frequency.value=650;lp.Q.value=0.3;
+  sndGain=actx.createGain();sndGain.gain.value=0;
+  src.connect(lp).connect(sndGain).connect(actx.destination);src.start();
+  applySound();
+}
+function applySound(){
+  sndBtn.setAttribute("aria-pressed",String(sndOn));
+  const waiting=sndOn&&(!actx||actx.state!=="running");
+  sndBtn.classList.toggle("wait",waiting);
+  sndBtn.title=sndOn?(waiting?"Ambient sound: on, starts when you click anywhere (M)":"Ambient sound: on. Click to mute (M)"):"Ambient sound: off. Click to turn on (M)";
+  if(!actx||!sndGain)return;
+  if(sndOn&&actx.state==="suspended")actx.resume().then(applySound).catch(()=>{});
+  const t=actx.currentTime;sndGain.gain.cancelScheduledValues(t);sndGain.gain.setValueAtTime(sndGain.gain.value,t);
+  sndGain.gain.linearRampToValueAtTime(sndOn?0.07:0,t+(sndOn?2.5:0.6));
+}
+sndBtn.onclick=e=>{e.stopPropagation();sndOn=!sndOn;if(sndOn)startAudio();applySound()};
+const firstGesture=()=>{removeEventListener("pointerdown",firstGesture,true);removeEventListener("keydown",firstGesture,true);
+  if(sndOn)startAudio();else applySound()};
+addEventListener("pointerdown",firstGesture,true);addEventListener("keydown",firstGesture,true);
+applySound();
+/* ---- welcome panel ----
+   Shows on start unless "Don't show this on start" was ticked (remembered in this browser).
+   Closing shrinks it into the ? button by the title; the ? grows it back out. */
+const intro=$("intro"),introVeil=$("introVeil"),helpBtn=$("helpBtn"),introHide=$("introHide"),HIDE_KEY="metraLive.hideIntro";
+let introOpen=false,introBusy=false;
+const store={get(){try{return localStorage.getItem(HIDE_KEY)==="1"}catch(_){return false}},
+  set(v){try{v?localStorage.setItem(HIDE_KEY,"1"):localStorage.removeItem(HIDE_KEY)}catch(_){}}};
+const reduceMotion=()=>matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+function introRest(){return"translate(-50%,-50%)"}
+function introAtButton(){   // transform that puts the panel's top-left corner on the ? button, tiny
+  const b=helpBtn.getBoundingClientRect(),st=stage.getBoundingClientRect();
+  const W=intro.offsetWidth,H=intro.offsetHeight,cx=st.width/2,cy=st.height/2;
+  const k=Math.max(.04,b.width/W);
+  return`translate(${(b.left-st.left)-cx}px,${(b.top-st.top)-cy}px) scale(${k})`}
+function openIntro(){
+  if(introOpen||introBusy)return;introOpen=true;introBusy=true;
+  introHide.checked=store.get();intro.hidden=false;hideTip();
+  if(reduceMotion()){intro.style.transform=introRest();intro.style.opacity=1;introVeil.classList.add("on");introBusy=false;intro.querySelector(".go").focus();return}
+  intro.classList.remove("anim");intro.style.transform=introAtButton();intro.style.opacity=0;intro.style.borderRadius="40px";
+  void intro.offsetWidth;intro.classList.add("anim");
+  requestAnimationFrame(()=>{intro.style.transform=introRest();intro.style.opacity=1;intro.style.borderRadius="";introVeil.classList.add("on")});
+  setTimeout(()=>{introBusy=false;intro.querySelector(".go").focus({preventScroll:true})},560);
+}
+function closeIntro(){
+  if(!introOpen||introBusy)return;introOpen=false;introBusy=true;
+  store.set(introHide.checked);introVeil.classList.remove("on");
+  const done=()=>{intro.hidden=true;intro.classList.remove("anim");introBusy=false;
+    helpBtn.classList.add("catch");setTimeout(()=>helpBtn.classList.remove("catch"),700)};
+  if(reduceMotion()){done();return}
+  intro.classList.add("anim");intro.style.transform=introAtButton();intro.style.opacity=0;intro.style.borderRadius="40px";
+  setTimeout(done,560);
+}
+introHide.onchange=()=>store.set(introHide.checked);
+intro.querySelector(".go").onclick=closeIntro;intro.querySelector(".x").onclick=closeIntro;
+introVeil.addEventListener("pointerdown",e=>{e.stopPropagation();closeIntro()});
+helpBtn.onclick=e=>{e.stopPropagation();introOpen?closeIntro():openIntro()};
+if(!store.get())setTimeout(openIntro,350);
 $("zin").onclick=()=>zoomBy(1/1.4);$("zout").onclick=()=>zoomBy(1.4);$("fit").onclick=resetView;
 let resizeT=0;
 addEventListener("resize",()=>{clearTimeout(resizeT);resizeT=setTimeout(()=>{
@@ -662,13 +965,14 @@ const LFS=t=>t===0?14:12.5;
 // where the short name repeats elsewhere on the network ("75th St"), show its alternate name too
 const primCount={};for(const r of STATIONS)primCount[r.label]=(primCount[r.label]||0)+1;
 for(const r of STATIONS){const alt=r.full.match(/\((.*)\)$/);r.alt=primCount[r.label]>1&&alt&&!TERMINALS[r.id]?alt[1]:""}
-function fillLabel(t,rec){t.textContent=rec.label;if(rec.alt){const sp=el("tspan",{class:"alt",dx:"4"},t);sp.textContent=rec.alt}
-  if(rec.tier===0){let first=true;for(const k of ORDER)if(rec.lines.has(k)){          // which lines use this terminal
+const SHORT={"LaSalle St":"LaSalle"};   // used only when the full name can't fit cleanly between neighbouring lines
+function fillLabel(t,rec,v=0){t.textContent=v===2?SHORT[rec.id]:rec.label;if(rec.alt){const sp=el("tspan",{class:"alt",dx:"4"},t);sp.textContent=rec.alt}
+  if(rec.tier===0&&v===0){let first=true;for(const k of ORDER)if(rec.lines.has(k)){          // which lines use this terminal
     const sp=el("tspan",{class:"tl",dx:first?"5":"1",fill:LINES[k].color,"data-k":k},t);sp.textContent="●";first=false}}}
 const meas=el("text",{style:"visibility:hidden"},lsvg);
-function textBox(rec,plain){const key=rec.id+(plain?"|p":"");let m=wcache.get(key);   // real rendered size at base font size
+function textBox(rec,v=0){const key=rec.id+"|"+v;let m=wcache.get(key);   // real rendered size at base font size
   if(!m){meas.setAttribute("class","lbl t"+rec.tier);meas.setAttribute("font-size",LFS(rec.tier));
-    meas.textContent="";fillLabel(meas,rec);if(plain)meas.querySelectorAll(".tl").forEach(x=>x.remove());
+    meas.textContent="";fillLabel(meas,rec,v);
     const bb=meas.getBBox();m={w:bb.width,h:bb.height};wcache.set(key,m)}
   return m}
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{wcache.clear();labelsDirty=true});
@@ -700,7 +1004,8 @@ function layoutLabels(){
   const UI=[{x0:0,y0:0,x1:W,y1:uiInsets().top-4}];          // don't draw labels under the top strip
   const consoleR=$("console").getBoundingClientRect(),zoomR=document.querySelector(".zoom").getBoundingClientRect(),sr=svg.getBoundingClientRect();
   for(const r of[consoleR,zoomR])UI.push({x0:r.left-sr.left-4,y0:r.top-sr.top-4,x1:r.right-sr.left+4,y1:r.bottom-sr.top+4});
-  const cardEl=$("card");if(cardEl.classList.contains("on")){const r=cardEl.getBoundingClientRect();UI.push({x0:r.left-sr.left,y0:r.top-sr.top,x1:r.right-sr.left,y1:r.bottom-sr.top})}
+  for(const q of[$("card"),$("notice"),$("spop"),$("board"),$("fstrip")]){if(!q.offsetHeight)continue;const r=q.getBoundingClientRect();
+    UI.push({x0:r.left-sr.left-3,y0:r.top-sr.top-3,x1:r.right-sr.left+3,y1:r.bottom-sr.top+3})}
   const placed=[],out=[],PAD=3,FS=labelScale();
   const hit=(b,list)=>{for(const p of list)if(b.x0<p.x1&&b.x1>p.x0&&b.y0<p.y1&&b.y1>p.y0)return true;return false};
   const cands=[];
@@ -713,19 +1018,23 @@ function layoutLabels(){
     (prevShown.has(b.rec.id)-prevShown.has(a.rec.id))||a.c[1]-b.c[1]||a.c[0]-b.c[0]);
   for(const{rec,c}of cands){
     // terminals: name + line dots if there's room, otherwise just the name
-    for(const plain of rec.tier===0?[false,true]:[false]){
-    const m=textBox(rec,plain),w=m.w*FS+2,h=m.h*FS*0.92;
+    // terminals try, in order: name + line dots, name only, short name; first without crossing track, then (last resort) allowing it
+    const combos=rec.tier===0?[0,1].flatMap(ps=>(SHORT[rec.id]?[0,1,2]:[0,1]).map(v=>[ps,v])):[[0,0]];
+    for(const[pass,v]of combos){
+    const m=textBox(rec,v),w=m.w*FS+2,h=m.h*FS*0.92;
     const nx=rec.n[0],ny=rec.n[1];
     const ext=v=>Math.abs(v[0])*rec.half[0]*sx+Math.abs(v[1])*rec.half[1]*sy; // marker half-size along v
     const D=.7071,diag=[[D,-D],[D,D],[-D,-D],[-D,D]].sort((a,b)=>(b[0]*nx+b[1]*ny)-(a[0]*nx+a[1]*ny));
     const dirs=rec.tier===0?[[nx,ny],[1,0],[0,1],[-1,0],[0,-1],...diag]:[[nx,ny],[-nx,-ny],...diag];
     let best=null;
-    for(const pass of rec.tier===0?[0,1]:[0])            // terminals always get a name: 2nd pass may cross track, never text
-    outer:for(const extra of[0,7])for(const d of dirs){
+    outer:for(const extra of[0,7])for(const d of dirs)for(const sl of rec.tier===0?[0,6,-6,12,-12]:[0]){
+      const horiz=Math.abs(d[0])>0.3&&Math.abs(d[1])<=0.3,vert=Math.abs(d[1])>0.3&&Math.abs(d[0])<=0.3;
+      if(sl!==0&&!horiz&&!vert)continue;                  // terminals may slide a few px along their side to dodge a neighbour
       const g=ext(d)+4+extra;
       let x0,y0;
       if(d[0]>0.3)x0=c[0]+d[0]*g;else if(d[0]<-0.3)x0=c[0]+d[0]*g-w;else x0=c[0]-w/2;
       if(d[1]<-0.3)y0=c[1]+d[1]*g-h;else if(d[1]>0.3)y0=c[1]+d[1]*g;else y0=c[1]-h/2;
+      if(horiz)y0+=sl;else if(vert)x0+=sl;
       const box={x0,y0,x1:x0+w,y1:y0+h};
       if(box.x0<2||box.x1>W-2||box.y1>H-2)continue;
       const pb={x0:box.x0-PAD,y0:box.y0-PAD+1,x1:box.x1+PAD,y1:box.y1+PAD-1};
@@ -736,8 +1045,13 @@ function layoutLabels(){
       const dOwn=Math.hypot(ap[0]-c[0],ap[1]-c[1]);let amb=false;
       for(const m of marks){if(m.id===rec.id)continue;if(Math.abs(m.c[0]-c[0])>w+60||Math.abs(m.c[1]-c[1])>70)continue;
         if(Math.hypot(ap[0]-m.c[0],ap[1]-m.c[1])<dOwn+1){amb=true;break}}
+      // (1b) terminals: its own box must be clearly the nearest marker to the name (no reading "Union" as Ogilvie's)
+      if(!amb&&rec.tier===0){const own=marks.find(m=>m.id===rec.id);
+        const dm=(m)=>Math.hypot(Math.max(box.x0-m.x1,m.x0-box.x1,0),Math.max(box.y0-m.y1,m.y0-box.y1,0));
+        if(own){const dO=dm(own);for(const m of marks){if(m.id===rec.id)continue;if(Math.abs(m.c[0]-c[0])>w+60||Math.abs(m.c[1]-c[1])>80)continue;
+          if(dm(m)<=dO+2){amb=true;break}}}}
       // (2) it doesn't hug the track of a line that doesn't serve this station
-      if(!amb&&pass===0)for(const sg of segs){if(rec.lines.has(sg[2]))continue;if(dBoxSeg(box,sg[0],sg[1])<7){amb=true;break}}
+      if(!amb&&pass===0)for(const sg of segs){if(rec.lines.has(sg[2]))continue;if(dBoxSeg(box,sg[0],sg[1])<(rec.tier===0?3:7)){amb=true;break}}
       if(amb)continue;
       const tb={x0:box.x0-trackHalf+1,y0:box.y0-trackHalf+1,x1:box.x1+trackHalf-1,y1:box.y1+trackHalf-1};
       let bad=false;if(pass===0)for(const s of segs)if(boxHitsSeg(tb,s[0],s[1])){bad=true;break}
@@ -746,7 +1060,7 @@ function layoutLabels(){
     }
         if(!best)continue;       // no clean spot at this zoom: leave it out rather than overlap anything
     placed.push(best.pb);
-    out.push({rec,plain,dx:best.box.x0+1-c[0],dy:(best.box.y0+best.box.y1)/2-c[1]});break;
+    out.push({rec,v,dx:best.box.x0+1-c[0],dy:(best.box.y0+best.box.y1)/2-c[1]});break;
     }
   }
   return out}
@@ -754,11 +1068,15 @@ function labelScale(){return Math.max(1,Math.min(1.28,1+0.11*Math.log2(Math.max(
 function renderLabels(){
   const list=layoutLabels(),now=new Set(),fs=labelScale();
   for(const d of list){now.add(d.rec.id);let L=labelEls.get(d.rec.id);
-    if(!L){const t=el("text",{class:"lbl t"+d.rec.tier},lsvg);fillLabel(t,d.rec);L={t};labelEls.set(d.rec.id,L)}
+    if(!L){const t=el("text",{class:"lbl t"+d.rec.tier},lsvg);L={t,v:-1};labelEls.set(d.rec.id,L)}
+    if(L.v!==d.v){L.v=d.v;L.t.textContent="";fillLabel(L.t,d.rec,d.v)}
     L.dx=d.dx;L.dy=d.dy;L.rec=d.rec;L.t.style.display="";
-    if(d.rec.tier===0)L.t.querySelectorAll(".tl").forEach(x=>x.style.display=d.plain?"none":"");L.t.setAttribute("font-size",(LFS(d.rec.tier)*fs).toFixed(2));}
+L.t.setAttribute("font-size",(LFS(d.rec.tier)*fs).toFixed(2));}
   for(const[id,L]of labelEls)if(!now.has(id))L.t.style.display="none";
-  prevShown=now;labelVB={...vb};positionLabels();}
+  prevShown=now;labelVB={...vb};positionLabels();
+  const lb=[];for(const id of prevShown)lb.push(labelEls.get(id).t.getBoundingClientRect());
+  for(const q of STATE_LBL){q.t.style.visibility="";const r=q.t.getBoundingClientRect();
+    q.t.style.visibility=lb.some(b=>b.left<r.right&&b.right>r.left&&b.top<r.bottom&&b.bottom>r.top)?"hidden":""}}
 function positionLabels(){
   const sx=cw()/vb.w,sy=ch()/vb.h;
   for(const id of prevShown){const L=labelEls.get(id);
@@ -829,7 +1147,7 @@ function trackPath(r,d0,d1){const lo=Math.max(0,Math.min(d0,d1)),hi=Math.min(r.a
 function makeTrainVisual(L){
   const g=el("g",{class:"train",tabindex:"0",role:"button"},trainG);
   el("title",{},g);
-  el("circle",{class:"glow",r:14,fill:L.color},g);
+  el("circle",{class:"glow",r:10,fill:L.color},g);
   el("circle",{class:"halo",r:16},g);
   el("circle",{class:"ring",r:7,stroke:L.color},g);
   const inner=el("g",{},g);
@@ -870,9 +1188,8 @@ function removeTrain(t,fade){
   if(selected===t)closeCard();
   if(fade){t.g.classList.add("bye");t.trail.g.classList.add("bye");setTimeout(()=>{t.g.remove();t.trail.g.remove()},900)}
   else{t.g.remove();t.trail.g.remove()}}
-function runLabel(v){if(v.sim)return{kind:"Simulated train",val:String(v.label)};
-  const n=v.label||v.vehicle_label||v.trip_short_name;
-  return n?{kind:"Train",val:String(n)}:{kind:"Vehicle",val:String(v.vehicle_id)}}
+function trainNo(x){x=String(x??"").trim();return/^\d{1,5}$/.test(x)?x:""}
+function runLabel(v){if(v.sim)return{sim:true,no:String(v.label)};return{no:trainNo(v.veh_label)}}
 function ingest(data){
   const ml=data.metra_lines||{};const seenAll=new Set();let bad=0;
   for(const key of ORDER){const L=LINES[key],vs=Array.isArray(ml[L.routeId])?ml[L.routeId]:[];
@@ -922,11 +1239,11 @@ async function poll(){
   inflight=true;refreshStatus();
   const ac=new AbortController(),to=setTimeout(()=>ac.abort(),FETCH_TIMEOUT);
   try{
-    const resp=await fetch(WORKER_URL,{cache:"no-store",signal:ac.signal});
+    const resp=await fetch(WORKER_URL+"?trips=1",{cache:"no-store",signal:ac.signal});
     if(!resp.ok)throw new Error("The feed relay answered with an error ("+resp.status+")");
     const data=await resp.json();
     if(!data||typeof data!=="object")throw new Error("The feed relay sent something unreadable");
-    if(mode!=="sim")takeAlerts(data);
+    if(mode!=="sim"){takeAlerts(data);takeTrips(data)}
     if(data.metra_error)throw new Error("Metra's feed returned an error: "+(typeof data.metra_error==="string"?data.metra_error:JSON.stringify(data.metra_error)));
     let fa=+data.fetched_at;if(isFinite(fa)&&fa>0){if(fa<1e12)fa*=1000;clockOffset=Date.now()-fa;lastFeedAt=fa}else{clockOffset=0;lastFeedAt=Date.now()}
     if(mode==="sim"){liveBack=true}                 // live works again: offer to switch, don't mix it with simulated trains
@@ -1019,7 +1336,7 @@ $("alist").addEventListener("keydown",e=>{if(e.key!=="Enter"&&e.key!==" ")return
 document.addEventListener("pointerdown",e=>{if($("apanel").classList.contains("on")&&!e.target.closest("#apanel,#abtn"))closeAlerts()});
 
 function startSim(){
-  mode="sim";liveBack=false;document.body.classList.add("simmode");clearTrains();
+  mode="sim";liveBack=false;document.body.classList.add("simmode");clearTrains();trips=null;
   let n=0;simTrains=[];
   for(const key of ORDER)LINES[key].routes.forEach((r,ri)=>{const last=r.st.length-1,per=ri===0?3:1;
     for(let j=0;j<per;j++)simTrains.push({key,ri,s:last*(j+.5)/per+Math.random()*.8,dir:(n%2?1:-1),v:.11+Math.random()*.07,run:String(900+n++)})});
@@ -1046,8 +1363,13 @@ document.addEventListener("visibilitychange",()=>{
 
 /* ---- status ---- */
 function ago(ms){const s=Math.max(0,Math.round(ms/1000));if(s<5)return"just now";if(s<60)return s+" s ago";const m=Math.round(s/60);return m<60?m+" min ago":Math.round(m/60)+" h ago"}
-function setState(cls,text){const s=$("state");s.className="state "+cls;$("stateText").textContent=text}
-function notice(html){const n=$("notice");if(html){if(n.dataset.h!==html){n.innerHTML=html;n.dataset.h=html}n.classList.add("on")}else{n.classList.remove("on");n.dataset.h=""}}
+function setState(cls,text){const s=$("state");s.className="state "+cls;$("stateText").textContent=text;
+  document.body.classList.toggle("trouble",everLoaded&&mode!=="sim"&&(cls==="warn"||cls==="err"))}
+function notice(html){const n=$("notice");
+  if(html){if(n.dataset.h!==html){const i=html.indexOf('<div class="acts">');
+      n.innerHTML=i<0?`<div class="msg">${html}</div>`:`<div class="msg">${html.slice(0,i)}</div>${html.slice(i)}`;n.dataset.h=html;labelsDirty=true}
+    if(!n.classList.contains("on")){n.classList.add("on");labelsDirty=true}}
+  else if(n.classList.contains("on")){n.classList.remove("on");n.dataset.h="";labelsDirty=true}}
 $("notice").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.act==="sim")startSim();else if(b.dataset.act==="live")stopSim();else if(b.dataset.act==="retry")poll()});
 const SIM_OFFER=`<div class="acts"><button class="go" data-act="sim">Show simulated trains</button><button data-act="retry">Try again</button></div>`;
@@ -1079,9 +1401,9 @@ function refreshStatus(){
 function tickHeader(){
   const now=new Date();$("clock").textContent=now.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
   const left=Math.max(0,nextPollAt-Date.now());
-  const frac=inflight?0:Math.min(1,left/POLL);
-  $("prog").style.strokeDashoffset=(37.7*(1-frac)).toFixed(2);
-  $("nextText").textContent=inflight?"Checking now":nextPollAt?("Next check ~"+Math.max(5,Math.ceil(left/5000)*5)+" s"):"Next check soon";
+  $("state").title=mode==="sim"?"Simulated trains, not real positions":
+    (everLoaded?"Updated "+ago(Date.now()-lastOkAt)+". ":"")+(inflight?"Checking now.":nextPollAt?"Next check in about "+Math.max(5,Math.ceil(left/5000)*5)+" s.":"")
+    +" Metra publishes new positions about every 30 seconds.";
 }
 
 /* ---- tooltip ---- */
@@ -1093,8 +1415,10 @@ function showStationTip(rec,e){
   const lines=[...rec.lines].map(k=>`<span class="lc" style="background:${LINES[k].color}"></span>${LINES[k].code}`).join("&nbsp; ");
   tip.innerHTML=`<div>${rec.full}</div><div class="s">${lines}</div>`;placeTip(e)}
 function showTrainTip(t,e){
-  tip.innerHTML=`<div><span class="lc" style="background:${t.L.color}"></span>${t.L.code} · ${t.run.kind} ${t.run.val}</div>`
+  const tr=tripFor(t),dest=tr&&tr.last_stop?destName(tr.last_stop):"";
+  tip.innerHTML=`<div><span class="lc" style="background:${t.L.color}"></span>${t.L.code}${trainLabel(t)?" · "+trainLabel(t):""}${dest?" to "+esc(dest):""}</div>`
    +`<div class="s">${dirText(t)}${t.stale?" · position out of date":""}</div>`;placeTip(e)}
+function trainLabel(t){return t.run.sim?"Simulated "+t.run.no:t.run.no?"Train "+t.run.no:""}
 function hideTip(){tip.style.opacity=0}
 function dirText(t){return t.dirSign===0?"Direction not known yet":t.dirSign<0?"Inbound to Chicago":"Outbound from Chicago"}
 
@@ -1110,42 +1434,52 @@ function bindTrain(t){
   t.g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}});
 }
 function selectTrain(t){
+  closeStationPop();closeBoardSheet();
   if(selected)selected.g.classList.remove("sel");
   selected=t;t.g.classList.add("sel");trainG.appendChild(t.g);
   following=t;card.classList.add("on");document.body.classList.add("sheet");renderCard();
-  const r=cw()/ch(),tw=Math.min(vb.w,420);
+  const r=cw()/ch(),tw=vb.w>FIT_W*0.55?Math.max(MIN_W,vb.w/2):vb.w;    // zoom in a step only if we're far out
   flyTo({x:t.shown[0]-tw/2,y:t.shown[1]-(tw/r)/2,w:tw,h:tw/r});labelsDirty=true}
 function stopFollowing(){if(!following)return;following=null;if(selected)renderCard()}
 function closeCard(){if(selected)selected.g.classList.remove("sel");selected=null;following=null;card.classList.remove("on");document.body.classList.remove("sheet");labelsDirty=true}
-const na=s=>`<span class="na">${s}</span>`;
-function stationAt(t,i){const r=t.L.routes[t.ri];i=Math.max(0,Math.min(r.st.length-1,i));return STN.get(r.ids[i]).full}
+function stationAt(t,i){const r=t.L.routes[t.ri];i=Math.max(0,Math.min(r.st.length-1,i));return STN.get(r.ids[i])}
+const fmtClock=sec=>new Date(sec*1000).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+function minsTo(sec,nowSec){const m=Math.round((sec-nowSec)/60);return m<=0?"Due":m+" min"}
 function renderCard(){
   const t=selected;if(!t)return;
   const r=t.L.routes[t.ri],s=t.lastObsS,n=r.st.length;      // the latest REAL fix, never the animated position
-  const near=Math.round(s),atStn=Math.abs(s-near)<0.12;
-  let last=na("Needs two reports to tell"),next=na("Needs two reports to tell");
+  const near=Math.round(s),atStn=Math.abs(s-near)<0.12,nowSec=serverNow()/1000;
+  // where it is, from GPS
+  let nowRow="",gpsNext=null,lastRec=null;
   if(t.dirSign!==0){
     const lo=Math.floor(s),hi=Math.min(n-1,Math.ceil(s));
-    if(t.dirSign>0){last=stationAt(t,atStn?near:lo);next=atStn?(near<n-1?stationAt(t,near+1):na("End of line")):stationAt(t,hi)}
-    else{last=stationAt(t,atStn?near:hi);next=atStn?(near>0?stationAt(t,near-1):na("End of line")):stationAt(t,lo)}
-    if(atStn)last=`${last} <span class="na">(at or just leaving)</span>`;
-  }
-  const age=serverNow()-t.updated,when=new Date(t.updated+clockOffset).toLocaleTimeString([],{hour:"numeric",minute:"2-digit",second:"2-digit"});
-  const status=mode==="sim"?`<span class="na">Simulated, not a real train</span>`:t.stale?`<span class="wn">No new position for ${ago(age).replace(" ago","")}</span>`:`<span class="ok">Reporting</span>`;
+    lastRec=t.dirSign>0?stationAt(t,atStn?near:lo):stationAt(t,atStn?near:hi);
+    const ni=t.dirSign>0?(atStn?near+1:hi):(atStn?near-1:lo);
+    if(ni>=0&&ni<n&&!(atStn&&(ni===near)))gpsNext=stationAt(t,ni);
+    nowRow=`<div class="row"><span class="kick2">${atStn?"At":"Passed"}</span><span class="v">${esc(stnName(lastRec))}</span><span></span></div>`;
+  }else nowRow=`<div class="row"><span class="kick2">Near</span><span class="v">${esc(stnName(stationAt(t,near)))}</span><span></span></div>`;
+  // where it's going, from Metra's own trip prediction (if there is one)
+  const tr=tripFor(t);let nextRow="",finalRow="",dest="";
+  if(tr&&tr.stops&&tr.stops.length){
+    let st=tr.stops.filter(x=>(x.arr||x.dep||0)>=nowSec-30);
+    if(st.length&&lastRec&&STOP_MAP[st[0].id]===lastRec.id&&st.length>1)st=st.slice(1);   // the stop it's at / just left
+    dest=tr.last_stop?destName(tr.last_stop):"";
+    const row=(k,x)=>{const tm=x.arr||x.dep;return`<div class="row"><span class="kick2">${k}</span><span class="v">${esc(destName(x.id)||"")}</span>`
+      +(tm?`<span class="t"><b>${minsTo(tm,nowSec)}</b> ${fmtClock(tm)}</span>`:"<span></span>")+`</div>`};
+    if(st.length){nextRow=row(st[0].dep&&!st[0].arr?"Leaves":"Next",st[0]);if(st.length>1)finalRow=row("Ends",st[st.length-1])}
+  }else if(gpsNext)nextRow=`<div class="row"><span class="kick2">Next</span><span class="v">${esc(stnName(gpsNext))}</span><span></span></div>`;
+  const dirWord=t.dirSign===0?"":t.dirSign<0?"Inbound":"Outbound";
+  const headline=dest?`to ${esc(dest)}`:t.dirSign<0?"to Chicago":t.dirSign>0?"from Chicago":"Direction not known yet";
+  const age=serverNow()-t.updated;
+  const foot=mode==="sim"?`<span>Simulated train, not real</span>`:t.stale?`<span class="wn">No new position for ${ago(age).replace(" ago","")}</span>`
+    :`<span>GPS position ${ago(age)}</span>`;
+  const sub=[trainLabel(t),r.branch].filter(Boolean).join(" · ");
   card.innerHTML=
-   `<div class="hd"><span class="bar" style="background:${t.L.color}"></span><div><div class="ttl">${t.L.name}</div>`
-   +`<div class="sub">${t.run.kind} ${t.run.val}${r.branch?" · "+r.branch:""}</div></div>`
+   `<div class="hd">${bullet(t.L.key)}<div><div class="ttl">${t.L.name}</div>${sub?`<div class="sub">${esc(sub)}</div>`:""}</div>`
    +`<button class="x" aria-label="Close train details">×</button></div>`
-   +`<dl><dt>Direction</dt><dd>${dirText(t)}</dd>`
-   +`<dt>Last station</dt><dd>${last}</dd>`
-   +`<dt>Departed</dt><dd>${na("Not in live feed")}</dd>`
-   +`<dt>Next station</dt><dd>${next}</dd>`
-   +`<dt>Arrives</dt><dd>${na("Not in live feed")}</dd>`
-   +`<dt>Nearest</dt><dd>${stationAt(t,near)}</dd>`
-   +`<dt>GPS report</dt><dd>${mode==="sim"?na("None (simulated)"):`${ago(age)} <span class="na">(${when})</span>`}</dd>`
-   +`<dt>Status</dt><dd>${status}</dd>`
-   +(t.trip?`<dt>Trip</dt><dd>${String(t.trip).replace(/[<>&]/g,"")}</dd>`:"")
-   +`</dl><div class="foot"><button class="fl" aria-pressed="${following===t}">${following===t?"Following":"Follow"}</button></div>`;
+   +`<div class="dest">${dirWord?`<span class="kick2">${dirWord}</span>`:""}<b>${headline}</b></div>`
+   +`<div class="rows">${nowRow}${nextRow}${finalRow}</div>`
+   +`<div class="ft">${foot}<button class="fl" aria-pressed="${following===t}">${following===t?"Following":"Follow"}</button></div>`;
   card.querySelector(".x").onclick=closeCard;
   card.querySelector(".fl").onclick=()=>{if(following===t){following=null}else{following=t}renderCard()};
 }
@@ -1158,10 +1492,147 @@ function placeCard(){
   const I=uiInsets();x=Math.max(12,Math.min(W-w-12,x));y=Math.max(I.top,Math.min(H-I.bot-h-6,y));
   card.style.transform=`translate(${x.toFixed(0)}px,${y.toFixed(0)}px)`}
 
+
+/* =====================================================================
+   STATION TIMES
+   Times are only ever Metra's own predictions from the trip-updates feed
+   (per stop, per train). When the feed has none, the board falls back to
+   what live GPS really shows: which trains are heading to the station and
+   how many stops out they are, with no time attached.
+   ===================================================================== */
+/* Metra stop_id -> station on this map (from Metra's stops.txt) */
+const STOP_MAP={"103RD-BEV":"103rd St|Beverly Hills","103RD-UP":"103rd St|Rosemoor","107TH-BEV":"107th St|Beverly Hills","107TH-UP":"107th St","111TH-BEV":"111th St|Morgan Park","111TH-UP":"111th St|Pullman","115TH-BEV":"115th St|Morgan Park","119TH-BEV":"119th St","123RD-BEV":"123rd St","143RD-SWS":"143rd St|Orland Park","147TH-UP":"147th St|Sibley Blvd","153RD-SWS":"153rd St|Orland Park","179TH-SWS":"179th St|Orland Park","18TH-UP":"18th St","211TH-UP":"211th St|Lincoln Hwy","27TH-UP":"27th St","35TH":"35th St|Lou Jones","47TH-UP":"47th St|Kenwood","51ST-53RD":"51st/53rd St|Hyde Park","55-56-57TH":"55th-56th-57th St","59TH-UP":"59th St|UChicago","63RD-UP":"63rd St","75TH-UP":"75th St|Grand Crossing","79TH-SC":"79th St|Cheltenham","79TH-UP":"79th St|Chatham","83RD-SC":"83rd St","83RD-UP":"83rd St|Avalon Park","87TH-SC":"87th St","87TH-UP":"87th St|Woodruff","91ST-BEV":"91st St|Beverly Hills","91ST-UP":"91st St|Chesterfield","93RD-SC":"93rd St|South Chicago","95TH-BEV":"95th St|Beverly Hills","95TH-UP":"95th St|Chicago State","99TH-BEV":"99th St|Beverly Hills","ANTIOCH":"Antioch","ARLINGTNHT":"Arlington Heights","ARLINGTNPK":"Arlington Park","ASHBURN":"Ashburn","ASHLAND":"Ashland Ave","AURORA":"Aurora","BARRINGTON":"Barrington","BARTLETT":"Bartlett","BELLWOOD":"Bellwood","BELMONT":"Belmont","BENSENVIL":"Bensenville","BERKELEY":"Berkeley","BERWYN":"Berwyn","BIGTIMBER":"Big Timber Rd","BLUEISLAND":"Blue Island|Vermont St","BNWESTERN":"Western Ave (BNSF)","BRAESIDE":"Braeside","BRAINERD":"Brainerd","BROOKFIELD":"Brookfield","BRYNMAWR":"Bryn Mawr","BUFFGROVE":"Buffalo Grove","BURROAK":"Burr Oak","CALUMET":"Calumet","CARY":"Cary","CENTRALST":"Central St|Evanston","CHICRIDGE":"Chicago Ridge","CICERO":"Cicero","CLARNDNHIL":"Clarendon Hills","CLYBOURN":"Clybourn","COLLEGEAVE":"College Ave","CONGRESSPK":"Congress Park","CRYSTAL":"Crystal Lake","CUMBERLAND":"Cumberland","CUS":"Union Station","DEERFIELD":"Deerfield","DEEROAD":"Dee Road","DESPLAINES":"Des Plaines","EDGEBROOK":"Edgebrook","EDISONPK":"Edison Park","ELBURN":"Elburn","ELGIN":"Elgin|Chicago St","ELMHURST":"Elmhurst","ELMWOODPK":"Elmwood Park","EVANSTON":"Davis St|Evanston","FAIRVIEWDG":"Fairview Ave","FLOSSMOOR":"Flossmoor","FORESTGLEN":"Forest Glen","FOXLAKE":"Fox Lake","FOXRG":"Fox River Grove","FRANKLIN":"Franklin Park","FRANKLINPK":"Belmont Ave|Franklin Park","FTSHERIDAN":"Fort Sheridan","GALEWOOD":"Galewood","GENEVA":"Geneva","GLADSTONEP":"Gladstone Park","GLENCOE":"Glencoe","GLENELLYN":"Glen Ellyn","GLENVIEW":"Glenview","GOLF":"Golf","GRAND-CIC":"Grand/Cicero","GRAYLAND":"Grayland","GRAYSLAKE":"Grayslake","GRESHAM":"Gresham","GRTLAKES":"Great Lakes","HALSTED":"Halsted St","HANOVERP":"Hanover Park","HANSONPK":"Hanson Park","HARLEM":"Harlem Ave","HARVARD":"Harvard","HARVEY":"Harvey","HAZELCREST":"Hazel Crest","HEALY":"Healy","HICKORYCRK":"Hickory Creek","HIGHLANDPK":"Highland Park","HIGHLANDS":"Highlands","HIGHWOOD":"Highwood","HINSDALE":"Hinsdale","HOLLYWOOD":"Hollywood","HOMEWOOD":"Homewood","HUBARDWOOD":"Hubbard Woods","INDIANHILL":"Indian Hill","INGLESIDE":"Ingleside","IRVINGPK":"Irving Park","ITASCA":"Itasca","IVANHOE":"Ivanhoe","JEFFERSONP":"Jefferson Park","JOLIET":"Joliet","KEDZIE":"Kedzie","KENILWORTH":"Kenilworth","KENOSHA":"Kenosha","KENSINGTN":"Kensington|115th St","LAFOX":"La Fox","LAGRANGE":"La Grange Rd","LAKEBLUFF":"Lake Bluff","LAKECOOKRD":"Lake Cook Rd","LAKEFRST":"Lake Forest (MD-N)","LAKEVILLA":"Lake Villa","LARAWAY":"Laraway Rd","LAVERGNE":"LaVergne","LEMONT":"Lemont","LIBERTYVIL":"Libertyville","LISLE":"Lisle","LKFOREST":"Lake Forest","LOCKPORT":"Lockport","LOMBARD":"Lombard","LONGLAKE":"Long Lake","LONGWOOD":"95th St|Longwood","LSS":"LaSalle St","MAINST":"Main St|Evanston","MAINST-DG":"Main St|Downers Grove","MANHATTAN":"Manhattan","MANNHEIM":"Mannheim","MARS":"Mars","MATTESON":"Matteson","MAYFAIR":"Mayfair","MAYWOOD":"Maywood","MCCORMICK":"McCormick Place","MCHENRY":"McHenry","MEDINAH":"Medinah","MELROSEPK":"Melrose Park","MIDLOTHIAN":"Midlothian","MILLENNIUM":"Millennium","MOKENA":"Mokena","MONTCLARE":"Mont Clare","MORTONGRV":"Morton Grove","MTPROSPECT":"Mount Prospect","MUNDELEIN":"Mundelein","MUSEUM":"Museum Campus|11th St","NAPERVILLE":"Naperville","NATIONALS":"National St|Elgin","NBROOK":"Northbrook","NCHICAGO":"North Chicago","NCSGRAYSLK":"Washington St|Grayslake","NEWLENOX":"New Lenox","NGLENVIEW":"North Glenview","NORWOODP":"Norwood Park","OAKFOREST":"Oak Forest","OAKLAWN":"Oak Lawn","OAKPARK":"Oak Park","OHARE":"O'Hare Transfer","OLYMPIA":"Olympia Fields","OTC":"Ogilvie","PALATINE":"Palatine","PALOSHTS":"Palos Heights","PALOSPARK":"Palos Park","PARKRIDGE":"Park Ridge","PINGREE":"Pingree Road","PRAIRCROSS":"Prairie Crossing","PRAIRIEST":"Prairie St","PRAIRIEVW":"Prairie View","PRAIRIEXNG":"Prairie Crossing","PROSPECTHG":"Prospect Heights","RACINE":"Racine Ave","RAVENSWOOD":"Ravenswood","RAVINIA":"Ravinia","RAVINIAPK":"Ravinia Park","RICHTON":"Richton Park","RIVERDALE":"Riverdale","RIVERGROVE":"River Grove","RIVERSIDE":"Riverside","RIVRFOREST":"River Forest","ROBBINS":"Robbins","ROGERPK":"Rogers Park","ROMEOVILLE":"Romeoville","ROSELLE":"Roselle","ROSEMONT":"Rosemont","ROUNDLAKE":"Round Lake","ROUNDLKBCH":"Round Lake Beach","ROUTE59":"Route 59","SCHAUM":"Schaumburg","SCHILLERPK":"Schiller Park","SOUTHSHORE":"South Shore","STATEST":"State St","STEWARTRID":"Stewart Ridge","STONEAVE":"Stone Ave","STONYISLND":"Stony Island","SUMMIT":"Summit","TINLEY80TH":"80th Ave|Tinley Park","TINLEYPARK":"Tinley Park","UNIVERSITY":"University Park","VANBUREN":"Van Buren St","VERMONT":"Blue Island|Vermont St","VERNON":"Vernon Hills","VILLAPARK":"Villa Park","WASHHGTS":"103rd St|Washington Hts","WAUKEGAN":"Waukegan","WCHICAGO":"West Chicago","WESTERNAVE":"Western Ave","WESTMONT":"Westmont","WESTSPRING":"Western Springs","WHEATON":"Wheaton","WHEELING":"Wheeling","WHINSDALE":"West Hinsdale","WILLOWSPRN":"Willow Springs","WILMETTE":"Wilmette","WINDSORPK":"75th St|Windsor Park","WINFIELD":"Winfield","WINNETKA":"Winnetka","WINTHROP":"Winthrop Harbor","WOODDALE":"Wood Dale","WOODSTOCK":"Woodstock","WORTH":"Worth","WPULLMAN":"West Pullman","WRIGHTWOOD":"Wrightwood","ZION":"Zion"};
+const STOP_NAMES={PETERSON:"Peterson/Ridge"};
+const DEST_SHORT={"Ogilvie":"Ogilvie","Union Station":"Union Station","LaSalle St":"LaSalle St","Millennium":"Millennium"};
+let trips=null;
+function takeTrips(data){trips=Array.isArray(data.trips)?data.trips:null}
+const stnName=rec=>DEST_SHORT[rec.id]||rec.label;
+function destName(stopId){const id=STOP_MAP[stopId];if(id){const r=STN.get(id);if(r)return DEST_SHORT[id]||r.label}return STOP_NAMES[stopId]||""}
+function tripFor(t){if(!trips||mode==="sim"||!t.trip)return null;for(const x of trips)if(x.trip_id===t.trip&&!x.canceled)return x;return null}
+function inkOn(hex){const h=hex.replace("#",""),v=[0,2,4].map(i=>parseInt(h.slice(i,i+2),16)/255).map(c=>c<=.03928?c/12.92:((c+.055)/1.055)**2.4);
+  return .2126*v[0]+.7152*v[1]+.0722*v[2]>.38?"#0B1620":"#FFFFFF"}
+const bullet=k=>`<span class="bullet" style="background:${LINES[k].color};color:${inkOn(LINES[k].color)}">${LINES[k].code}</span>`;
+function feedHealthy(){return everLoaded&&Date.now()-lastOkAt<3*POLL}
+// predicted stops at this station, soonest first
+function predictionsAt(rec,nowSec){const out=[];
+  for(const tr of trips){if(tr.canceled||!Array.isArray(tr.stops))continue;const key=ROUTE_KEY[tr.route_id];if(!key)continue;
+    const st=tr.stops;for(let i=0;i<st.length;i++){const x=st[i];if(STOP_MAP[x.id]!==rec.id)continue;
+      const tm=x.arr||x.dep;if(!tm||tm<nowSec-30)break;
+      const ends=i===st.length-1;
+      const live=trains.some(t=>t.trip===tr.trip_id&&!t.stale);
+      out.push({key,tm,no:trainNo(tr.veh_label),ends,dest:ends?"":destName(tr.last_stop||st[st.length-1].id),live,id:tr.trip_id});break}}
+  return out.sort((a,b)=>a.tm-b.tm)}
+// trains really heading here, from their last real GPS fix
+function approachingAt(rec){const out=[];
+  for(const t of trains){if(t.stale||t.dirSign===0)continue;const L=t.L,r=L.routes[t.ri];const idx=r.ids.indexOf(rec.id);if(idx<0)continue;
+    const s=t.lastObsS,rem=(idx-s)*t.dirSign;if(rem<-0.12)continue;
+    // heading out on a stretch shared by several branches: we can't know which branch it takes yet
+    if(t.dirSign>0&&L.routes.length>1){let unsure=false;L.routes.forEach((_,ri)=>{if(ri===t.ri)return;const P=sharedPrefix(L,t.ri,ri);if(s<=P+0.12&&idx>P)unsure=true});if(unsure)continue}
+    const at=rem<0.12;let stops=0;if(!at)for(let k=Math.floor(Math.min(s,idx))+1;k<=Math.ceil(Math.max(s,idx));k++){if(k===idx)continue;if((k-s)*t.dirSign>0.12&&(idx-k)*t.dirSign>0)stops++}
+    out.push({t,key:L.key,at,stops,rem})}
+  return out.sort((a,b)=>a.rem-b.rem)}
+function arrivalRows(rec,max){
+  const nowSec=serverNow()/1000;
+  if(mode!=="sim"&&!everLoaded)return{msg:"Waiting for live data…"};
+  if(mode!=="sim"&&!feedHealthy())return{msg:"Live feed not answering, so no times right now."};
+  if(mode!=="sim"&&trips){
+    const p=predictionsAt(rec,nowSec).slice(0,max);
+    if(!p.length)return{msg:"No trains on the way right now.",src:"pred"};
+    return{src:"pred",html:p.map(a=>`<div class="arr${a.live?"":" pred"}" title="${a.live?"Train is reporting GPS now":"Prediction only: this train isn't reporting GPS yet"}">${bullet(a.key)}`
+      +`<span class="to">${a.no?`<span class="no">${a.no}</span>`:""}${a.ends?"arriving":"to "+esc(a.dest)}</span>`
+      +`<span class="when"><b>${minsTo(a.tm,nowSec)}</b>${fmtClock(a.tm)}</span></div>`).join("")};
+  }
+  const g=[],seen=new Set();for(const a of approachingAt(rec)){const d=a.t.dirSign;if(seen.has(d)&&g.length>=1)continue;seen.add(d);g.push(a);if(g.length>=Math.min(2,max))break}
+  if(!g.length)return{msg:"No trains heading here right now.",src:"gps"};
+  return{src:"gps",html:g.map(a=>`<div class="arr">${bullet(a.key)}<span class="to">${a.t.run.sim?`<span class="no">${a.t.run.no}</span>`:a.t.run.no?`<span class="no">${a.t.run.no}</span>`:""}${a.t.dirSign<0?"inbound":"outbound"}</span>`
+    +`<span class="when gps">${a.at?"at station":a.stops===0?"next stop":a.stops+1+" stops away"}</span></div>`).join("")};
+}
+
+/* =====================================================================
+   FAVORITE STATIONS — click a station, ☆ to pin (up to 5).
+   Saved in this browser only (localStorage key metraLive.favorites).
+   ===================================================================== */
+const FAV_KEY="metraLive.favorites",FAV_MAX=5;
+const FAV=(()=>{try{const v=JSON.parse(localStorage.getItem(FAV_KEY)||"{}");return{ids:(Array.isArray(v.ids)?v.ids:[]).filter(id=>STN.has(id)).slice(0,FAV_MAX),min:!!v.min}}catch(_){return{ids:[],min:false}}})();
+function saveFav(){try{localStorage.setItem(FAV_KEY,JSON.stringify(FAV))}catch(_){}}
+const isFav=id=>FAV.ids.includes(id);
+function toggleFav(rec){if(isFav(rec.id))FAV.ids=FAV.ids.filter(x=>x!==rec.id);else if(FAV.ids.length<FAV_MAX)FAV.ids.push(rec.id);else return;
+  saveFav();boardSig="";renderBoard();renderStationPop();refit()}
+function refit(){FIT_W=fitAll().w;syncZoom();labelsDirty=true}
+
+/* ---- station popover ---- */
+const spop=$("spop");let spopRec=null;
+function openStationPop(rec){if(spopRec===rec){closeStationPop();return}
+  hideTip();closeAlerts();closeBoardSheet();if(selected)closeCard();
+  spopRec=rec;spop.classList.add("on");document.body.classList.add("pop");renderStationPop();placeStationPop();labelsDirty=true}
+function closeStationPop(){if(!spopRec)return;spopRec=null;spop.classList.remove("on");document.body.classList.remove("pop");labelsDirty=true}
+let spopSig="";
+function renderStationPop(){const rec=spopRec;if(!rec)return;
+  const lines=ORDER.filter(k=>rec.lines.has(k)),on=isFav(rec.id),full=!on&&FAV.ids.length>=FAV_MAX,rows=arrivalRows(rec,2);
+  const html=`<button class="x" aria-label="Close station">×</button><div class="nm">${esc(rec.full)}</div><div class="ln">${lines.map(bullet).join("")}</div>`
+    +(rows.html||`<div class="fav none" style="padding:0;border:0">${rows.msg}</div>`)
+    +`<button class="star" aria-pressed="${on}" ${full?"disabled":""}>${on?"★ On your board":"☆ Add to your board"}</button>`
+    +(full?`<div class="note">Your board holds ${FAV_MAX} stations. Remove one to add this.</div>`:on?`<div class="note">Click again to remove it.</div>`:"");
+  if(html===spopSig)return;spopSig=html;spop.innerHTML=html;
+  spop.querySelector(".x").onclick=closeStationPop;spop.querySelector(".star").onclick=()=>toggleFav(rec)}
+function placeStationPop(){if(!spopRec)return;if(isNarrow()){spop.style.transform="";return}
+  const sx=cw()/vb.w,sy=ch()/vb.h,px=(spopRec.xy[0]-vb.x)*sx,py=(spopRec.xy[1]-vb.y)*sy,w=spop.offsetWidth,h=spop.offsetHeight,W=cw(),H=ch(),I=uiInsets();
+  let x=px+18,y=py-24;if(x+w>W-12)x=px-18-w;x=Math.max(12,Math.min(W-w-12,x));y=Math.max(I.top,Math.min(H-I.bot-h-6,y));
+  spop.style.transform=`translate(${x.toFixed(0)}px,${y.toFixed(0)}px)`}
+spop.addEventListener("pointerdown",e=>e.stopPropagation());
+
+/* ---- the board ---- */
+const board=$("board"),fstrip=$("fstrip");let boardSig="";
+function closeBoardSheet(){if(document.body.classList.contains("boardsheet")){document.body.classList.remove("boardsheet");labelsDirty=true}}
+function renderBoard(){
+  const favs=FAV.ids.map(id=>STN.get(id)).filter(Boolean),narrow=isNarrow();
+  document.body.classList.toggle("hasfav",favs.length>0);
+  board.classList.toggle("min",FAV.min&&!narrow);
+  let src="",body;
+  if(!favs.length)body=`<p class="bmsg">Click any station on the map, then ☆, to pin it here. Up to ${FAV_MAX}.</p>`;
+  else body=favs.map(rec=>{const r=arrivalRows(rec,3);if(r.src)src=src||r.src;
+    return`<div class="fav" data-id="${esc(rec.id)}"><div class="fn"><button class="go" title="Show ${esc(rec.full)} on the map">${esc(rec.label)}</button>`
+      +`<button class="rm" aria-label="Remove ${esc(rec.full)} from your board" title="Remove">×</button></div>`
+      +(r.html||`<div class="none">${r.msg}</div>`)+`</div>`}).join("");
+  const foot=!favs.length?"":mode==="sim"?"Simulated trains, not real.":src==="pred"?"Times are Metra's live predictions. Faded line = train not reporting GPS yet."
+    :src==="gps"?"No times in the feed right now. Based on live train positions.":"";
+  const html=`<div class="bh"><span class="kick2">★ Your stations</span>${favs.length?`<span class="cnt">${favs.length}/${FAV_MAX}</span>`:""}`
+    +(mode==="sim"?`<span class="simtag">Simulated</span>`:"")
+    +`<button class="col" aria-label="${narrow?"Close":FAV.min?"Expand":"Collapse"} your stations" aria-expanded="${narrow||!FAV.min}">${narrow?"×":FAV.min?"▸":"▾"}</button></div>`
+    +`<div class="bl">${body}</div>${foot?`<div class="bf">${foot}</div>`:""}`;
+  if(html===boardSig)return;boardSig=html;board.innerHTML=html;labelsDirty=true;
+}
+board.addEventListener("pointerdown",e=>e.stopPropagation());
+board.addEventListener("click",e=>{
+  if(e.target.closest(".col")){if(isNarrow()){closeBoardSheet();return}FAV.min=!FAV.min;saveFav();boardSig="";renderBoard();refit();return}
+  const f=e.target.closest(".fav");if(!f)return;const rec=STN.get(f.dataset.id);if(!rec)return;
+  if(e.target.closest(".rm")){toggleFav(rec);return}
+  if(e.target.closest(".go")){closeBoardSheet();const z=Math.min(vb.w,FIT_W*.45),r=cw()/ch();stopFollowing();
+    flyTo({x:rec.xy[0]-z/2,y:rec.xy[1]-z/r/2,w:z,h:z/r});setTimeout(()=>openStationPop(rec),300)}});
+/* phone: one favorite at a time on a strip; tap for the whole board */
+let stripIdx=0,stripT=0;
+function tickStrip(){if(!isNarrow())return;const favs=FAV.ids.map(id=>STN.get(id)).filter(Boolean);if(!favs.length)return;
+  if(++stripT>=8){stripT=0;stripIdx++}const rec=favs[stripIdx%favs.length],nowSec=serverNow()/1000;let info="";
+  if(mode!=="sim"&&feedHealthy()&&trips){const p=predictionsAt(rec,nowSec)[0];info=p?`<b>${minsTo(p.tm,nowSec)}</b> · ${LINES[p.key].code} ${p.ends?"arriving":"to "+esc(p.dest)}`:"No trains on the way"}
+  else{const r=arrivalRows(rec,1);info=r.msg||r.html.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim()}
+  const html=`<span class="s">★ ${esc(rec.label)}</span><span class="i">${info}</span>${favs.length>1?`<span class="n">${stripIdx%favs.length+1}/${favs.length}</span>`:""}`;
+  if(fstrip.dataset.h!==html){fstrip.innerHTML=html;fstrip.dataset.h=html}}
+fstrip.addEventListener("pointerdown",e=>e.stopPropagation());
+fstrip.onclick=()=>{closeStationPop();if(selected)closeCard();document.body.classList.add("boardsheet");boardSig="";renderBoard()};
+
+/* ---- ambient: after 10 s with no input, the controls step back ---- */
+let lastInput=Date.now();
+for(const ev of["pointermove","pointerdown","keydown","wheel","touchstart"])addEventListener(ev,()=>{lastInput=Date.now();
+  if(document.body.classList.contains("idle"))document.body.classList.remove("idle")},{passive:true,capture:true});
+function tickIdle(){const busy=introOpen||$("apanel").classList.contains("on")||spopRec||document.body.classList.contains("boardsheet");
+  document.body.classList.toggle("idle",!busy&&Date.now()-lastInput>10000)}
+renderBoard();
+
 /* =====================================================================
    MAIN LOOP
    ===================================================================== */
 FIT_W=fitAll().w;vb=fitAll();applyVB();syncZoom();
+const SWELL_G=[...document.querySelectorAll(".swl")];let lastSwell="";
 let lastFrame=performance.now(),labelT=0,cardT=0,statusT=0,lastVB="",lastMarkW=-1;
 function frame(now){
   const dt=Math.min(.25,(now-lastFrame)/1000);lastFrame=now;
@@ -1175,7 +1646,7 @@ function frame(now){
     t.arrow.style.display=known?"":"none";t.dot.style.display=known?"none":"";
     t.g.setAttribute("transform",`translate(${p.x.toFixed(2)},${p.y.toFixed(2)}) scale(${k.toFixed(4)})`);
     if(known)t.inner.setAttribute("transform",`rotate(${((t.dirSign<0?p.ang+Math.PI:p.ang)*180/Math.PI).toFixed(1)})`);
-    const a=`${t.L.name} line, ${t.run.kind.toLowerCase()} ${t.run.val}, ${dirText(t).toLowerCase()}${t.stale?", position out of date":""}`;
+    const a=`${t.L.name} line${trainLabel(t)?", "+trainLabel(t).toLowerCase():""}, ${dirText(t).toLowerCase()}${t.stale?", position out of date":""}`;
     if(a!==t.a11y){t.a11y=a;t.g.firstChild.textContent=a}
   }
   if(following&&!camAnim&&!drag){
@@ -1189,15 +1660,17 @@ function frame(now){
   if(key!==lastVB){lastVB=key;labelsDirty=true;
     const z=FIT_W/vb.w;document.documentElement.style.setProperty("--tw",Math.max(2.4,Math.min(6.5,2.6+1.5*Math.log2(Math.max(1,z)))).toFixed(2)+"px");
     if(Math.abs(vb.w-lastMarkW)>1e-6){lastMarkW=vb.w;updateMarkers()}
+    {const gap=58*cw()/vb.w,o=Math.max(0,Math.min(1,(gap-7)/9)).toFixed(2);      // swells fade out when they'd crowd into stripes
+     if(o!==lastSwell){lastSwell=o;for(const q of SWELL_G)q.style.opacity=o}}
     positionLabels()}
   labelT-=dt;if(labelT<=0&&labelsDirty){labelT=.12;labelsDirty=false;renderLabels()}
-  placeCard();
-  cardT-=dt;if(cardT<=0){cardT=1;if(selected)renderCard()}
-  statusT-=dt;if(statusT<=0){statusT=1;refreshStatus();tickHeader()}
+  placeCard();placeStationPop();
+  cardT-=dt;if(cardT<=0){cardT=1;if(selected)renderCard();if(spopRec)renderStationPop();renderBoard()}
+  statusT-=dt;if(statusT<=0){statusT=1;refreshStatus();tickHeader();tickIdle();tickStrip()}
   requestAnimationFrame(frame);
 }
 if(GEO_ISSUES.length)console.warn("Schematic ordering issues:",GEO_ISSUES);
-window.__metra={takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
+window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return sndGain&&sndGain.gain.value},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
 tickHeader();poll();requestAnimationFrame(frame);
 })();
 </script>

@@ -1,8 +1,19 @@
 // Metra live relay: fetches Metra's GTFS-realtime feeds, decodes the protobuf by hand,
 // and returns clean JSON to the dashboard. No caching: every call hits Metra fresh.
 // Secret required: METRA_API_TOKEN
+//
+//   /          -> live data for the dashboard
+//   /?trips=1  -> the same, plus per-stop predictions from the tripupdates feed
+//   /?peek=1   -> a readable sample of what Metra actually sends (for checking the data)
 
 function readVarint(b, p) { let r = 0, s = 1, byte; do { byte = b[p]; r += (byte & 0x7f) * s; s *= 128; p++; } while (byte & 0x80); return [r, p]; }
+// int32/int64 fields (like a delay) can be negative; those need exact 64-bit maths
+function readSigned(b, p) {
+  let r = 0n, s = 0n, byte;
+  do { byte = b[p]; r |= BigInt(byte & 0x7f) << s; s += 7n; p++; } while (byte & 0x80);
+  if (r >= 1n << 63n) r -= 1n << 64n;
+  return [Number(r), p];
+}
 function readFloat(b, p) { const dv = new DataView(b.buffer, b.byteOffset + p, 4); return [dv.getFloat32(0, true), p + 4]; }
 function skip(b, p, wt) {
   if (wt === 0) return readVarint(b, p)[1];
@@ -25,67 +36,136 @@ function eachField(b, cb) {
     p = np === undefined ? skip(b, p, wt) : np;
   }
 }
+// FeedMessage -> each entity's bytes
+function eachEntity(buf, cb) {
+  eachField(new Uint8Array(buf), (f, wt, b, p) => {
+    if (f !== 2 || wt !== 2) return;
+    const [ent, np] = readSub(b, p); cb(ent); return np;
+  });
+}
+function feedTimestamp(buf) {
+  let ts = null;
+  eachField(new Uint8Array(buf), (f, wt, b, p) => {
+    if (f !== 1 || wt !== 2) return;                         // FeedHeader
+    const [h, np] = readSub(b, p);
+    eachField(h, (hf, hwt, hb, hp) => { if (hf === 3 && hwt === 0) { const [v, n] = readVarint(hb, hp); ts = v; return n; } });
+    return np;
+  });
+  return ts;
+}
 
-/* ------------------------------ vehicle positions (unchanged) ------------------------------ */
+/* ------------------------------ shared small messages ------------------------------ */
+function parseTripDescriptor(tb) {
+  const t = { trip_id: null, route_id: null, direction_id: null, start_date: null, start_time: null, schedule_relationship: null };
+  eachField(tb, (f, wt, b, p) => {
+    if (f === 1 && wt === 2) { const [s, n] = readString(b, p); t.trip_id = s; return n; }
+    if (f === 2 && wt === 2) { const [s, n] = readString(b, p); t.start_time = s; return n; }
+    if (f === 3 && wt === 2) { const [s, n] = readString(b, p); t.start_date = s; return n; }
+    if (f === 4 && wt === 0) { const [v, n] = readVarint(b, p); t.schedule_relationship = v; return n; }
+    if (f === 5 && wt === 2) { const [s, n] = readString(b, p); t.route_id = s; return n; }
+    if (f === 6 && wt === 0) { const [v, n] = readVarint(b, p); t.direction_id = v; return n; }
+  });
+  return t;
+}
+function parseVehicleDescriptor(vb) {
+  const v = { id: null, label: null };
+  eachField(vb, (f, wt, b, p) => {
+    if (f === 1 && wt === 2) { const [s, n] = readString(b, p); v.id = s; return n; }
+    if (f === 2 && wt === 2) { const [s, n] = readString(b, p); v.label = s; return n; }
+  });
+  return v;
+}
+
+/* ------------------------------------ vehicle positions ------------------------------------ */
 function parseVehicles(buf) {
-  const b = new Uint8Array(buf);
   const out = [];
-  let p = 0;
-  while (p < b.length) {
-    const [tag, p1] = readVarint(b, p); p = p1;
-    const field = tag >>> 3, wt = tag & 7;
-    if (field === 2 && wt === 2) {
-      const [entBytes, p2] = readSub(b, p); p = p2;
-      let ep = 0, vehicleSub = null;
-      while (ep < entBytes.length) {
-        const [etag, ep1] = readVarint(entBytes, ep); ep = ep1;
-        const ef = etag >>> 3, ewt = etag & 7;
-        if (ef === 4 && ewt === 2) { const [vb, ep2] = readSub(entBytes, ep); ep = ep2; vehicleSub = vb; }
-        else ep = skip(entBytes, ep, ewt);
+  eachEntity(buf, ent => {
+    let vehicleSub = null;
+    eachField(ent, (f, wt, b, p) => { if (f === 4 && wt === 2) { const [v, n] = readSub(b, p); vehicleSub = v; return n; } });
+    if (!vehicleSub) return;
+    let trip = null, veh = { id: null, label: null }, lat = null, lon = null, ts = null;
+    eachField(vehicleSub, (f, wt, b, p) => {
+      if (f === 1 && wt === 2) { const [s, n] = readSub(b, p); trip = parseTripDescriptor(s); return n; }
+      if (f === 8 && wt === 2) { const [s, n] = readSub(b, p); veh = parseVehicleDescriptor(s); return n; }
+      if (f === 2 && wt === 2) {
+        const [pb, n] = readSub(b, p);
+        eachField(pb, (pf, pwt, pbb, pp) => {
+          if (pf === 1 && pwt === 5) { const [x, m] = readFloat(pbb, pp); lat = x; return m; }
+          if (pf === 2 && pwt === 5) { const [x, m] = readFloat(pbb, pp); lon = x; return m; }
+        });
+        return n;
       }
-      if (vehicleSub) {
-        let vp = 0, trip_id = null, route_id = null, direction_id = null, lat = null, lon = null, ts = null, veh_id = null;
-        while (vp < vehicleSub.length) {
-          const [vtag, vp1] = readVarint(vehicleSub, vp); vp = vp1;
-          const vf = vtag >>> 3, vwt = vtag & 7;
-          if (vf === 1 && vwt === 2) {
-            const [tb, vp2] = readSub(vehicleSub, vp); vp = vp2;
-            let tp = 0;
-            while (tp < tb.length) {
-              const [ttag, tp1] = readVarint(tb, tp); tp = tp1;
-              const tf = ttag >>> 3, twt = ttag & 7;
-              if (tf === 1 && twt === 2) { const [s, tp2] = readString(tb, tp); trip_id = s; tp = tp2; }
-              else if (tf === 5 && twt === 2) { const [s, tp2] = readString(tb, tp); route_id = s; tp = tp2; }
-              else if (tf === 6 && twt === 0) { const [n, tp2] = readVarint(tb, tp); direction_id = n; tp = tp2; }
-              else tp = skip(tb, tp, twt);
-            }
-          } else if (vf === 8 && vwt === 2) {
-            const [vdb, vp2] = readSub(vehicleSub, vp); vp = vp2;
-            let dp = 0;
-            while (dp < vdb.length) {
-              const [dtag, dp1] = readVarint(vdb, dp); dp = dp1;
-              const df = dtag >>> 3, dwt = dtag & 7;
-              if (df === 1 && dwt === 2) { const [s, dp2] = readString(vdb, dp); veh_id = s; dp = dp2; }
-              else dp = skip(vdb, dp, dwt);
-            }
-          } else if (vf === 2 && vwt === 2) {
-            const [pb, vp2] = readSub(vehicleSub, vp); vp = vp2;
-            let pp = 0;
-            while (pp < pb.length) {
-              const [ptag, pp1] = readVarint(pb, pp); pp = pp1;
-              const pf = ptag >>> 3, pwt = ptag & 7;
-              if (pf === 1 && pwt === 5) { const [f, pp2] = readFloat(pb, pp); lat = f; pp = pp2; }
-              else if (pf === 2 && pwt === 5) { const [f, pp2] = readFloat(pb, pp); lon = f; pp = pp2; }
-              else pp = skip(pb, pp, pwt);
-            }
-          } else if (vf === 5 && vwt === 0) { const [n, vp2] = readVarint(vehicleSub, vp); ts = n; vp = vp2; }
-          else vp = skip(vehicleSub, vp, vwt);
-        }
-        if (lat != null && lon != null && route_id) out.push({ route_id, trip_id, direction_id, latitude: lat, longitude: lon, updated_at: ts, vehicle_id: veh_id });
-      }
-    } else p = skip(b, p, wt);
-  }
+      if (f === 5 && wt === 0) { const [v, n] = readVarint(b, p); ts = v; return n; }
+    });
+    const route_id = trip && trip.route_id;
+    if (lat != null && lon != null && route_id) out.push({
+      route_id, trip_id: trip.trip_id, direction_id: trip.direction_id,
+      latitude: lat, longitude: lon, updated_at: ts, vehicle_id: veh.id, veh_label: veh.label
+    });
+  });
   return out;
+}
+
+/* --------------------------------------- trip updates --------------------------------------- */
+// TripUpdate: trip (1), stop_time_update (2), vehicle (3), timestamp (4), delay (5)
+// StopTimeUpdate: stop_sequence (1), arrival (2), departure (3), stop_id (4), schedule_relationship (5)
+// StopTimeEvent: delay (1), time (2), uncertainty (3)
+function parseStopTimeEvent(eb) {
+  const e = {};
+  eachField(eb, (f, wt, b, p) => {
+    if (f === 1 && wt === 0) { const [v, n] = readSigned(b, p); e.delay = v; return n; }
+    if (f === 2 && wt === 0) { const [v, n] = readSigned(b, p); e.time = v; return n; }
+    if (f === 3 && wt === 0) { const [v, n] = readSigned(b, p); e.uncertainty = v; return n; }
+  });
+  return e;
+}
+function parseTripUpdates(buf) {
+  const out = [];
+  eachEntity(buf, ent => {
+    let id = "", tuBytes = null, deleted = false;
+    eachField(ent, (f, wt, b, p) => {
+      if (f === 1 && wt === 2) { const [s, n] = readString(b, p); id = s; return n; }
+      if (f === 2 && wt === 0) { const [v, n] = readVarint(b, p); deleted = !!v; return n; }
+      if (f === 3 && wt === 2) { const [s, n] = readSub(b, p); tuBytes = s; return n; }
+    });
+    if (!tuBytes || deleted) return;
+    const tu = { entity_id: id, trip: null, vehicle: null, timestamp: null, delay: null, stops: [] };
+    eachField(tuBytes, (f, wt, b, p) => {
+      if (f === 1 && wt === 2) { const [s, n] = readSub(b, p); tu.trip = parseTripDescriptor(s); return n; }
+      if (f === 3 && wt === 2) { const [s, n] = readSub(b, p); tu.vehicle = parseVehicleDescriptor(s); return n; }
+      if (f === 4 && wt === 0) { const [v, n] = readVarint(b, p); tu.timestamp = v; return n; }
+      if (f === 5 && wt === 0) { const [v, n] = readSigned(b, p); tu.delay = v; return n; }
+      if (f === 2 && wt === 2) {
+        const [sb, n] = readSub(b, p);
+        const st = { stop_id: null, stop_sequence: null, arrival: null, departure: null, schedule_relationship: null };
+        eachField(sb, (sf, swt, sbb, sp) => {
+          if (sf === 1 && swt === 0) { const [v, m] = readVarint(sbb, sp); st.stop_sequence = v; return m; }
+          if (sf === 4 && swt === 2) { const [s, m] = readString(sbb, sp); st.stop_id = s; return m; }
+          if (sf === 2 && swt === 2) { const [e, m] = readSub(sbb, sp); st.arrival = parseStopTimeEvent(e); return m; }
+          if (sf === 3 && swt === 2) { const [e, m] = readSub(sbb, sp); st.departure = parseStopTimeEvent(e); return m; }
+          if (sf === 5 && swt === 0) { const [v, m] = readVarint(sbb, sp); st.schedule_relationship = v; return m; }
+        });
+        tu.stops.push(st);
+        return n;
+      }
+    });
+    if (tu.trip) out.push(tu);
+  });
+  return out;
+}
+// The dashboard only needs what's still ahead, in a compact shape.
+function compactTrips(list, nowSec) {
+  return list.map(tu => { const kept = tu.stops.filter(s => s.stop_id && s.schedule_relationship !== 1); return {
+    trip_id: tu.trip.trip_id, route_id: tu.trip.route_id, direction_id: tu.trip.direction_id,
+    canceled: tu.trip.schedule_relationship === 3 || undefined,
+    vehicle_id: tu.vehicle && tu.vehicle.id, veh_label: tu.vehicle && tu.vehicle.label,
+    updated_at: tu.timestamp,
+    stops: kept                                                                // skipped stops (1) dropped
+      .map(s => ({ id: s.stop_id, arr: s.arrival && s.arrival.time || undefined, dep: s.departure && s.departure.time || undefined,
+                   delay: (s.arrival && s.arrival.delay) ?? (s.departure && s.departure.delay) ?? undefined }))
+      .filter(s => (s.arr || s.dep || 0) >= nowSec - 120 || (!s.arr && !s.dep)),
+    last_stop: kept.length ? kept[kept.length - 1].stop_id : undefined
+  }; });
 }
 
 /* --------------------------------------- service alerts --------------------------------------- */
@@ -115,18 +195,15 @@ function translated(b) {
   return en ?? first ?? "";
 }
 function parseAlerts(buf) {
-  const b = new Uint8Array(buf);
   const out = [];
-  eachField(b, (f, wt, bb, p) => {
-    if (f !== 2 || wt !== 2) return;                        // FeedMessage.entity
-    const [ent, np] = readSub(bb, p);
+  eachEntity(buf, ent => {
     let id = "", alertBytes = null, deleted = false;
     eachField(ent, (ef, ewt, eb, ep) => {
       if (ef === 1 && ewt === 2) { const [s, n] = readString(eb, ep); id = s; return n; }
       if (ef === 2 && ewt === 0) { const [v, n] = readVarint(eb, ep); deleted = !!v; return n; }
       if (ef === 5 && ewt === 2) { const [a, n] = readSub(eb, ep); alertBytes = a; return n; }
     });
-    if (!alertBytes || deleted) return np;
+    if (!alertBytes || deleted) return;
     const a = { id, header: "", description: "", url: "", routes: [], stops: [], periods: [], cause: null, effect: null, severity: null };
     const routes = new Set(), stops = new Set();
     eachField(alertBytes, (af, awt, ab, ap) => {
@@ -144,8 +221,7 @@ function parseAlerts(buf) {
           if (xf === 2 && xwt === 2) { const [s, m] = readString(xb, xp); routes.add(s); return m; }
           if (xf === 5 && xwt === 2) { const [s, m] = readString(xb, xp); stops.add(s); return m; }
           if (xf === 4 && xwt === 2) {                      // trip -> its route_id
-            const [tb, m] = readSub(xb, xp);
-            eachField(tb, (tf, twt, tbb, tp) => { if (tf === 5 && twt === 2) { const [s, k] = readString(tbb, tp); routes.add(s); return k; } });
+            const [tb, m] = readSub(xb, xp); const t = parseTripDescriptor(tb); if (t.route_id) routes.add(t.route_id);
             return m;
           }
         });
@@ -161,55 +237,77 @@ function parseAlerts(buf) {
     a.routes = [...routes]; a.stops = [...stops];
     if (!/^https?:\/\//i.test(a.url)) a.url = "";
     if (a.header || a.description) out.push(a);
-    return np;
   });
   return out;
 }
 
 /* ------------------------------------------ handler ------------------------------------------ */
 const BASE = "https://gtfspublic.metrarr.com/gtfs/public/";
+const JSON_HEADERS = { "content-type": "application/json", "access-control-allow-origin": "*", "Cache-Control": "no-store" };
+
+async function getFeed(name, headers) {
+  const r = await fetch(BASE + name, { headers });
+  if (!r.ok) throw new Error(`Metra ${name} feed returned ${r.status}`);
+  return r.arrayBuffer();
+}
 
 export default {
   async fetch(request, env) {
     const headers = { Authorization: `Bearer ${env.METRA_API_TOKEN}` };
-    const out = {};
-    // Both feeds in parallel. If alerts fail, positions still come through (and vice versa).
-    const [pos, alr] = await Promise.allSettled([
-      fetch(BASE + "positions", { headers }),
-      fetch(BASE + "alerts", { headers })
+    const url = new URL(request.url);
+    // All three feeds in parallel. If one fails, the others still come through.
+    const [pos, alr, tup] = await Promise.allSettled([
+      getFeed("positions", headers), getFeed("alerts", headers), getFeed("tripupdates", headers)
     ]);
+    const nowSec = Math.floor(Date.now() / 1000);
 
+    /* ---- peek: a human-readable sample for checking what Metra really sends ---- */
+    if (url.searchParams.has("peek")) {
+      const peek = { what: "Sample of Metra's live feeds, decoded. Safe to share: no token in here.", checked_at: new Date().toISOString() };
+      try {
+        if (pos.status !== "fulfilled") throw pos.reason;
+        const v = parseVehicles(pos.value);
+        peek.positions = { feed_time: feedTimestamp(pos.value), trains: v.length, sample: v.slice(0, 12) };
+      } catch (e) { peek.positions = { error: String(e) }; }
+      try {
+        if (tup.status !== "fulfilled") throw tup.reason;
+        const t = parseTripUpdates(tup.value), ids = new Set(), byRoute = {};
+        for (const u of t) { for (const s of u.stops) if (s.stop_id) ids.add(s.stop_id); const r = u.trip.route_id || "?"; byRoute[r] = (byRoute[r] || 0) + 1; }
+        const withTimes = t.filter(u => u.stops.some(s => (s.arrival && s.arrival.time) || (s.departure && s.departure.time))).length;
+        peek.tripupdates = {
+          feed_time: feedTimestamp(tup.value), trips: t.length, trips_with_stop_times: withTimes, trips_per_route: byRoute,
+          stops_per_trip: t.map(u => u.stops.length).sort((a, b) => a - b),
+          all_stop_ids: [...ids].sort(), sample: t.slice(0, 10)
+        };
+      } catch (e) { peek.tripupdates = { error: String(e) }; }
+      try {
+        if (alr.status !== "fulfilled") throw alr.reason;
+        peek.alerts = { count: parseAlerts(alr.value).length };
+      } catch (e) { peek.alerts = { error: String(e) }; }
+      return new Response(JSON.stringify(peek, null, 2), { headers: JSON_HEADERS });
+    }
+
+    /* ---- normal: what the dashboard reads every 30 s ---- */
+    const out = {};
     try {
       if (pos.status !== "fulfilled") throw pos.reason;
-      const mResp = pos.value;
-      if (mResp.ok) {
-        const vehicles = parseVehicles(await mResp.arrayBuffer());
-        const byRoute = {};
-        for (const v of vehicles) { (byRoute[v.route_id] ||= []).push(v); }
-        out.metra_lines = byRoute;
-      } else {
-        out.metra_error = `Metra feed returned ${mResp.status}`;
-      }
-    } catch (e) {
-      out.metra_error = String(e);
-    }
+      const byRoute = {};
+      for (const v of parseVehicles(pos.value)) (byRoute[v.route_id] ||= []).push(v);
+      out.metra_lines = byRoute;
+    } catch (e) { out.metra_error = String(e && e.message || e); }
 
     try {
       if (alr.status !== "fulfilled") throw alr.reason;
-      const aResp = alr.value;
-      if (aResp.ok) out.alerts = parseAlerts(await aResp.arrayBuffer());
-      else out.alerts_error = `Metra alerts feed returned ${aResp.status}`;
-    } catch (e) {
-      out.alerts_error = String(e);
-    }
+      out.alerts = parseAlerts(alr.value);
+    } catch (e) { out.alerts_error = String(e && e.message || e); }
+
+    // Per-stop predictions are only sent when the dashboard asks (?trips=1), to keep every poll small.
+    if (url.searchParams.has("trips")) try {
+      if (tup.status !== "fulfilled") throw tup.reason;
+      out.trips = compactTrips(parseTripUpdates(tup.value), nowSec);
+    } catch (e) { out.trips_error = String(e && e.message || e); }
 
     out.fetched_at = Date.now();
-    return new Response(JSON.stringify(out), {
-      headers: {
-        "content-type": "application/json",
-        "access-control-allow-origin": "*",
-        "Cache-Control": "no-store"
-      }
-    });
+    return new Response(JSON.stringify(out), { headers: JSON_HEADERS });
   }
 };
