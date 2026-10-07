@@ -310,6 +310,11 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 .sdir .arr:first-of-type{margin-top:4px}
 .snone{font-size:13px;color:var(--muted);margin-top:4px}
 
+/* ---------- train of the moment (screensaver) ---------- */
+body.chasing .stlbl,body.chasing .lakelbl{display:none}
+#stage.tilt{transform-origin:50% 62%;will-change:transform}
+#horizon{position:absolute;left:0;right:0;top:0;height:30%;pointer-events:none;opacity:0;
+  background:linear-gradient(var(--bg) 18%,transparent)}
 /* ---------- today's report card ---------- */
 #rcBtn{display:none} body.hasreport #rcBtn{display:inline-flex}
 #rcBtn svg{width:15px;height:15px} #rcBtn svg path{stroke:currentColor;stroke-width:2.2;fill:none;stroke-linecap:round}
@@ -518,6 +523,7 @@ button{touch-action:manipulation}
   <svg id="map" role="group" aria-label="Schematic map of Metra commuter rail with live train positions"></svg>
   <svg id="labels" aria-hidden="true"></svg>
 </div>
+<div id="horizon"></div>
 
 <div class="top">
   <div class="mark"><b>Metra</b><span>Live network, Chicago region</span>
@@ -890,7 +896,8 @@ const SEGMENTS=[];for(const key of ORDER)for(const r of LINES[key].routes)for(le
 let vb={x:0,y:0,w:1200,h:800},camAnim=null,following=null,selected=null,drag=null,focusKey=null;
 const cw=()=>svg.clientWidth||window.innerWidth||1440, ch=()=>svg.clientHeight||window.innerHeight||900;
 const isNarrow=()=>cw()<=760;
-function uiInsets(){const sr=svg.getBoundingClientRect(),top=document.querySelector(".top").getBoundingClientRect();
+const svgRect=()=>({left:0,top:0,right:cw(),bottom:ch(),width:cw(),height:ch()});   // #map fills the window; ignores the screensaver tilt
+function uiInsets(){const sr=svgRect(),top=document.querySelector(".top").getBoundingClientRect();
   let bot=0;for(const q of[$("console"),document.querySelector(".zoom"),$("fstrip")]){const r=q.getBoundingClientRect();if(r.height)bot=Math.max(bot,sr.bottom-r.top)}
   let right=0;const bd=$("board");if(!isNarrow()&&bd.offsetHeight&&!bd.classList.contains("min"))right=sr.right-bd.getBoundingClientRect().left+4;
   return{top:Math.max(40,top.bottom-sr.top),bot:Math.max(40,bot),right}}
@@ -1178,7 +1185,8 @@ function boxHitsSeg(b,a,c){  // Liang–Barsky: does segment a->c enter box b?
     if(p[i]<0){if(r>t1)return false;if(r>t0)t0=r}else{if(r<t0)return false;if(r<t1)t1=r}}}
   return true}
 function layoutLabels(){
-  const W=cw(),H=ch(),sx=W/vb.w,sy=H/vb.h,toS=p=>[(p[0]-vb.x)*sx,(p[1]-vb.y)*sy];
+  const W=cw(),H=ch(),sx=W/vb.w,sy=H/vb.h,toS=p=>{const q=rotPt(p);return[(q[0]-vb.x)*sx,(q[1]-vb.y)*sy]};
+  const rc=Math.cos(ROT.a),rs=Math.sin(ROT.a),turned=Math.abs(ROT.a)>1e-4;
   const trackHalf=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tw"))/2+1.5;
   // obstacles in screen space, culled to the viewport (+margin)
   const M=160,inView=(x,y)=>x>-M&&x<W+M&&y>-M&&y<H+M;
@@ -1191,9 +1199,9 @@ function layoutLabels(){
     for(const q of[a,c]){const dx=Math.max(b.x0-q[0],q[0]-b.x1,0),dy=Math.max(b.y0-q[1],q[1]-b.y1,0);m=Math.min(m,Math.hypot(dx,dy))}
     return m};
   const marks=[];for(const rec of STATIONS){if(focusKey&&!rec.lines.has(focusKey))continue;const c=toS(rec.xy);if(!inView(c[0],c[1]))continue;
-    const hx=rec.half[0]*sx+1.5,hy=rec.half[1]*sy+1.5;marks.push({x0:c[0]-hx,y0:c[1]-hy,x1:c[0]+hx,y1:c[1]+hy,id:rec.id,c,hx,hy})}
+    const hm=turned?Math.max(rec.half[0],rec.half[1]):0,hx=(turned?hm:rec.half[0])*sx+1.5,hy=(turned?hm:rec.half[1])*sy+1.5;marks.push({x0:c[0]-hx,y0:c[1]-hy,x1:c[0]+hx,y1:c[1]+hy,id:rec.id,c,hx,hy})}
   const UI=[{x0:0,y0:0,x1:W,y1:uiInsets().top-4}];          // don't draw labels under the top strip
-  const consoleR=$("console").getBoundingClientRect(),zoomR=document.querySelector(".zoom").getBoundingClientRect(),sr=svg.getBoundingClientRect();
+  const consoleR=$("console").getBoundingClientRect(),zoomR=document.querySelector(".zoom").getBoundingClientRect(),sr=svgRect();
   for(const r of[consoleR,zoomR])UI.push({x0:r.left-sr.left-4,y0:r.top-sr.top-4,x1:r.right-sr.left+4,y1:r.bottom-sr.top+4});
   for(const q of[$("card"),$("notice"),$("spop"),$("board"),$("fstrip"),$("rcard")]){if(!q.offsetHeight||(q.classList.contains("pnl")&&!q.classList.contains("on"))||getComputedStyle(q).visibility==="hidden")continue;const r=q.getBoundingClientRect();
     const gx=r.width*.03+3,gy=r.height*.03+3;     // panels may still be scaling in: leave room for their full size
@@ -1214,8 +1222,8 @@ function layoutLabels(){
     const combos=rec.tier===0?[0,1].flatMap(ps=>(SHORT[rec.id]?[0,1,2]:[0,1]).map(v=>[ps,v])):[[0,0]];
     for(const[pass,v]of combos){
     const m=textBox(rec,v),w=m.w*FS+2,h=m.h*FS*0.92;
-    const nx=rec.n[0],ny=rec.n[1];
-    const ext=v=>Math.abs(v[0])*rec.half[0]*sx+Math.abs(v[1])*rec.half[1]*sy; // marker half-size along v
+    const nx=rec.n[0]*rc-rec.n[1]*rs,ny=rec.n[0]*rs+rec.n[1]*rc,hh=turned?[Math.max(...rec.half),Math.max(...rec.half)]:rec.half;
+    const ext=v=>Math.abs(v[0])*hh[0]*sx+Math.abs(v[1])*hh[1]*sy; // marker half-size along v
     const D=.7071,diag=[[D,-D],[D,D],[-D,-D],[-D,D]].sort((a,b)=>(b[0]*nx+b[1]*ny)-(a[0]*nx+a[1]*ny));
     const dirs=rec.tier===0?[[nx,ny],[1,0],[0,1],[-1,0],[0,-1],...diag]:[[nx,ny],[-nx,-ny],...diag];
     let best=null;
@@ -1272,8 +1280,9 @@ L.t.setAttribute("font-size",(LFS(d.rec.tier)*fs).toFixed(2));}
 function positionLabels(){
   const sx=cw()/vb.w,sy=ch()/vb.h;
   for(const id of prevShown){const L=labelEls.get(id);
-    L.t.setAttribute("x",((L.rec.xy[0]-vb.x)*sx+L.dx).toFixed(1));
-    L.t.setAttribute("y",((L.rec.xy[1]-vb.y)*sy+L.dy).toFixed(1));}}
+    const q=rotPt(L.rec.xy);
+    L.t.setAttribute("x",((q[0]-vb.x)*sx+L.dx).toFixed(1));
+    L.t.setAttribute("y",((q[1]-vb.y)*sy+L.dy).toFixed(1));}}
 
 /* =====================================================================
    LINE FOCUS
@@ -1930,6 +1939,72 @@ function tickIdle(){const busy=introOpen||$("apanel").classList.contains("on")||
 renderBoard();
 
 /* =====================================================================
+   TRAIN OF THE MOMENT (screensaver)
+   After 2 minutes with no input, the camera picks a live train, swings in behind it (the map turns
+   so the train points up the screen, and tilts back in 3D), rides along for about a minute, then
+   pulls back to the whole map and rests before picking another. Any mouse move, touch, scroll or
+   key brings the normal map straight back. Only trains with a known direction and fresh GPS are
+   picked, so the camera never guesses. Tilt is skipped on phones and small devices; the whole thing
+   is off with reduced motion.
+   ===================================================================== */
+const ROT={a:0,cx:0,cy:0};                 // world turn (radians) around a pivot; the label layout uses it too
+function rotPt(p){if(!ROT.a)return p;const c=Math.cos(ROT.a),s=Math.sin(ROT.a),dx=p[0]-ROT.cx,dy=p[1]-ROT.cy;return[ROT.cx+dx*c-dy*s,ROT.cy+dx*s+dy*c]}
+const CH={IDLE:120000,IN:3200,RIDE:60000,OUT:2800,REST:25000,EXIT:550};
+let chase=null,chaseLast=null,chaseTilt=0,worldRotKey="",lastPtr=null;
+const horizon=$("horizon");
+const canTilt=()=>!isNarrow()&&(navigator.hardwareConcurrency||8)>4;
+const easeIO=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
+const angDiff=(a,b)=>{let d=(b-a)%(2*Math.PI);if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;return d};
+const lerpVB=(a,b,k)=>({x:a.x+(b.x-a.x)*k,y:a.y+(b.y-a.y)*k,w:a.w+(b.w-a.w)*k,h:a.h+(b.h-a.h)*k});
+function chaseOk(t){return t&&!t.gone&&!t.stale&&t.dirSign!==0&&t.rot!=null&&(!focusKey||t.L.key===focusKey)}
+function pickChaseTrain(){const c=trains.filter(chaseOk);if(!c.length)return null;
+  const moving=c.filter(t=>Math.abs(t.segTo-t.segFrom)>.05),pool=(moving.length?moving:c).filter(t=>t!==chaseLast||c.length===1);
+  return pool[Math.floor(Math.random()*pool.length)]}
+const headingOf=t=>-Math.PI/2-t.rot*Math.PI/180;                     // the world turn that points this train up the screen
+function rideVB(t){const w=Math.max(MIN_W*1.3,FIT_W/6),h=w*ch()/cw();return{x:t.shown[0]-w/2,y:t.shown[1]-h*.62,w,h}}
+function chaseBusy(){return introOpen||drag||selected||spopRec||$("apanel").classList.contains("on")||sndMenu.classList.contains("on")||document.body.classList.contains("boardsheet")}
+function startRide(now){const t=pickChaseTrain();if(!t){chase={phase:"rest",t0:now};return}
+  chaseLast=t;camAnim=null;following=null;
+  chase={phase:"in",t0:now,t,home:chase&&chase.home||fitAll(),from:{...vb},a:0,tilt:0,goTilt:canTilt()};
+  document.body.classList.add("chasing")}
+function endChase(now,quick){if(!chase||chase.phase==="exit"||chase.phase==="out"&&!quick)return;
+  if(chase.phase==="rest"&&quick){finishChase();return}
+  chase={...chase,phase:quick?"exit":"out",t0:now,from:{...vb},fromA:ROT.a,fromTilt:chaseTilt}}
+function finishChase(){chase=null;ROT.a=0;setTilt(0);document.body.classList.remove("chasing");labelsDirty=true}
+function setTilt(k){chaseTilt=k;
+  if(k<=.001){if(stage.classList.contains("tilt")){stage.classList.remove("tilt");stage.style.transform="";horizon.style.opacity=0}return}
+  stage.classList.add("tilt");stage.style.transform=`perspective(1000px) rotateX(${(34*k).toFixed(2)}deg) scale(${(1+.55*k).toFixed(3)})`;horizon.style.opacity=k.toFixed(3)}
+function chaseFrame(now,dt){
+  if(!chase){
+    if(Date.now()-lastInput>CH.IDLE&&!chaseBusy()&&!reduceMotion()&&!document.hidden&&trains.length)startRide(now);
+    return false}
+  const e=now-chase.t0,t=chase.t;
+  if(chase.phase==="rest"){if(e>CH.REST){chase.home=fitAll();startRide(now)}return false}
+  if((chase.phase==="in"||chase.phase==="ride")&&(!chaseOk(t)||chaseBusy()))endChase(now,false);
+  if(chase.phase==="in"||chase.phase==="ride"){
+    ROT.cx=t.shown[0];ROT.cy=t.shown[1];
+    const want=headingOf(t);
+    chase.a+=angDiff(chase.a,want)*(1-Math.exp(-dt/1.1));            // ease round the bends over about a second
+    if(chase.phase==="in"){const k=Math.min(1,e/CH.IN),z=easeIO(k),r=easeIO(Math.max(0,(k-.2)/.8));
+      if(k===0||chase.a===0)chase.a=want;
+      Object.assign(vb,lerpVB(chase.from,rideVB(t),z));ROT.a=chase.a*r;setTilt(chase.goTilt?r:0);
+      if(k>=1)chase.phase="ride",chase.t0=now}
+    else{Object.assign(vb,rideVB(t));ROT.a=chase.a;if(chase.goTilt)setTilt(1);if(e>CH.RIDE)endChase(now,false)}
+  }else{                                                                // "out" (ride over) or "exit" (you moved): back to the flat, whole map
+    const d=chase.phase==="exit"?CH.EXIT:CH.OUT,k=Math.min(1,e/d),z=easeIO(k);
+    if(t&&!t.gone){ROT.cx=t.shown[0];ROT.cy=t.shown[1]}
+    Object.assign(vb,lerpVB(chase.from,chase.home,z));ROT.a=chase.fromA*(1-z);setTilt(chase.fromTilt*(1-z));
+    if(k>=1){if(chase.phase==="exit")finishChase();else{ROT.a=0;setTilt(0);document.body.classList.remove("chasing");chase={phase:"rest",t0:now,home:chase.home};labelsDirty=true}}
+  }
+  const rk=ROT.a?`rotate(${(ROT.a*180/Math.PI).toFixed(3)} ${ROT.cx.toFixed(2)} ${ROT.cy.toFixed(2)})`:"";
+  if(rk!==worldRotKey){worldRotKey=rk;rk?world.setAttribute("transform",rk):world.removeAttribute("transform")}
+  return true}
+// any real input ends it: a pointer that actually moved, a touch, a scroll or a key
+addEventListener("pointermove",e=>{const m=!lastPtr||Math.hypot(e.clientX-lastPtr[0],e.clientY-lastPtr[1])>2;lastPtr=[e.clientX,e.clientY];if(m&&chase)endChase(performance.now(),true)},{passive:true,capture:true});
+for(const ev of["pointerdown","keydown","wheel","touchstart"])addEventListener(ev,()=>{if(chase)endChase(performance.now(),true)},{passive:true,capture:true});
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&chase)finishChase()});
+
+/* =====================================================================
    MAIN LOOP
    ===================================================================== */
 FIT_W=fitAll().w;vb=fitAll();applyVB();syncZoom();
@@ -1959,20 +2034,21 @@ function frame(now){
     vb.x+=(following.shown[0]-cx)*f;vb.y+=(following.shown[1]+oy-cy)*f;
   }
   if(camAnim)camAnim(now);
+  const chasing=chaseFrame(now,dt);
   applyVB();
-  const key=vb.x.toFixed(2)+","+vb.y.toFixed(2)+","+vb.w.toFixed(2);
+  const key=vb.x.toFixed(2)+","+vb.y.toFixed(2)+","+vb.w.toFixed(2)+","+ROT.a.toFixed(4);
   if(key!==lastVB){lastVB=key;labelsDirty=true;
     const z=FIT_W/vb.w;document.documentElement.style.setProperty("--tw",Math.max(2.4,Math.min(6.5,2.6+1.5*Math.log2(Math.max(1,z)))).toFixed(2)+"px");
     if(Math.abs(vb.w-lastMarkW)>1e-6){lastMarkW=vb.w;updateMarkers()}
     positionLabels()}
-  labelT-=dt;if(labelT<=0&&labelsDirty&&!camAnim){labelT=.12;labelsDirty=false;renderLabels()}   // during a camera glide labels just ride along; re-placed when it lands
+  labelT-=dt;if(labelT<=0&&labelsDirty&&!camAnim){labelT=chasing?.4:.12;labelsDirty=false;renderLabels()}   // during a camera glide labels just ride along; re-placed when it lands
   placeCard();placeStationPop();
   cardT-=dt;if(cardT<=0){cardT=1;if(selected)renderCard();if(spopRec)renderStationPop();renderBoard()}
   statusT-=dt;if(statusT<=0){statusT=1;refreshStatus();tickHeader();tickIdle();tickStrip()}
   requestAnimationFrame(frame);
 }
 if(GEO_ISSUES.length)console.warn("Schematic ordering issues:",GEO_ISSUES);
-window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get RADAR_C(){return RADAR_C},takeReport,get report(){return report},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
+window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get RADAR_C(){return RADAR_C},get chase(){return chase},startRide:()=>startRide(performance.now()),get ROT(){return ROT},takeReport,get report(){return report},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
 tickHeader();poll();requestAnimationFrame(frame);
 })();
 </script>

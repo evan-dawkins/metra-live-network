@@ -15,6 +15,7 @@ It's made to sit on a second monitor, like a fish tank, but it works on a phone 
 - Click a train or a station to see what's coming and when.
 - Shows Metra's service alerts.
 - Keeps a report card of how many trains finished on time today.
+- Turns into a screensaver: leave it alone for 2 minutes and the camera rides along behind a live train. Move the mouse to get the normal map back.
 - Has light and dark mode.
 
 ## Sounds
