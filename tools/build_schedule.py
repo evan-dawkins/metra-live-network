@@ -14,7 +14,11 @@ OUT = "schedule.json"
 
 def rows(z, name):
     with z.open(name) as f:
-        yield from csv.DictReader(io.TextIOWrapper(f, encoding="utf-8-sig"))
+        rd = csv.reader(io.TextIOWrapper(f, encoding="utf-8-sig"))
+        head = [h.strip().lower() for h in next(rd)]         # Metra's headers can carry stray spaces
+        print(f"{name} columns: {head}")
+        for r in rd:
+            yield {k: (v.strip() if v else "") for k, v in zip(head, r)}
 
 def main():
     if len(sys.argv) > 1:
@@ -30,12 +34,15 @@ def main():
 
     last = {}                                    # trip_id -> (stop_sequence, stop_id, arrival_time)
     for r in rows(z, "stop_times.txt"):
-        tid, seq = r["trip_id"].strip(), int(r["stop_sequence"])
+        tid, seq = r.get("trip_id", ""), r.get("stop_sequence", "")
+        if not seq.isdigit():
+            continue
+        seq = int(seq)
         t = (r.get("arrival_time") or r.get("departure_time") or "").strip()
         if not tid or not t:
             continue
         if tid not in last or seq > last[tid][0]:
-            last[tid] = (seq, r["stop_id"].strip(), t if len(t) == 8 else t.zfill(8))
+            last[tid] = (seq, r.get("stop_id", ""), t if len(t) == 8 else t.zfill(8))
 
     version = ""
     if "feed_info.txt" in z.namelist():
