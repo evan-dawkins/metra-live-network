@@ -264,7 +264,7 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 .snone{font-size:13px;color:var(--muted);margin-top:4px}
 
 /* ---------- favorite stations board (a small departure sign) ---------- */
-#board{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));top:calc(58px + env(safe-area-inset-top,0px));width:318px;
+#board{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));top:calc(58px + env(safe-area-inset-top,0px));width:318px;
   max-height:calc(100% - 150px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--edge);border-radius:12px;
   box-shadow:var(--shadow);z-index:3;overflow:hidden;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 #board .bh{display:flex;align-items:center;gap:8px;padding:8px 6px 7px 12px;flex:none}
@@ -308,7 +308,7 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 #tip .lc{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px;vertical-align:-1px}
 
 /* ---------- notice ---------- */
-#notice{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));top:calc(56px + env(safe-area-inset-top,0px));background:var(--panel);
+#notice{position:absolute;left:50%;transform:translateX(-50%);top:calc(56px + env(safe-area-inset-top,0px));background:var(--panel);
   border:1px solid var(--edge);border-radius:18px;padding:5px 6px 5px 14px;font-size:14px;max-width:min(620px,calc(100vw - 28px));display:none;
   color:var(--ink);align-items:center;gap:6px 12px;flex-wrap:wrap;z-index:4;box-shadow:var(--shadow)}
 #notice.on{display:flex}
@@ -408,7 +408,7 @@ button{touch-action:manipulation}
   /* train details become a sheet above the line picker */
   #card,#spop{left:8px;right:8px;width:auto;top:auto;bottom:calc(58px + env(safe-area-inset-bottom,0px));transform:none!important;
     max-height:56vh;overflow-y:auto}
-  #notice{left:8px;right:8px;max-width:none;top:calc(50px + env(safe-area-inset-top,0px));font-size:13px;border-radius:14px}
+  #notice{left:8px;right:8px;transform:none;max-width:none;top:calc(50px + env(safe-area-inset-top,0px));font-size:13px;border-radius:14px}
   body.sheet .zoom,body.pop .zoom,body.boardsheet .zoom{display:none}
   /* favorites: a one-line strip above the line picker; tap it for the full board */
   #board{display:none;left:8px;right:8px;top:auto;bottom:calc(58px + env(safe-area-inset-bottom,0px));width:auto!important;max-height:56vh;z-index:6}
@@ -803,11 +803,11 @@ const cw=()=>svg.clientWidth||window.innerWidth||1440, ch=()=>svg.clientHeight||
 const isNarrow=()=>cw()<=760;
 function uiInsets(){const sr=svg.getBoundingClientRect(),top=document.querySelector(".top").getBoundingClientRect();
   let bot=0;for(const q of[$("console"),document.querySelector(".zoom"),$("fstrip")]){const r=q.getBoundingClientRect();if(r.height)bot=Math.max(bot,sr.bottom-r.top)}
-  let left=0;const bd=$("board");if(!isNarrow()&&bd.offsetHeight&&!bd.classList.contains("min"))left=bd.getBoundingClientRect().right-sr.left+4;
-  return{top:Math.max(40,top.bottom-sr.top),bot:Math.max(40,bot),left}}
-function fitBox(b){const W=cw(),H=ch(),I=uiInsets(),TOP_UI=I.top,BOT_UI=I.bot,side=isNarrow()?12:40,availH=H-TOP_UI-BOT_UI-16,availW=W-side-I.left;
+  let right=0;const bd=$("board");if(!isNarrow()&&bd.offsetHeight&&!bd.classList.contains("min"))right=sr.right-bd.getBoundingClientRect().left+4;
+  return{top:Math.max(40,top.bottom-sr.top),bot:Math.max(40,bot),right}}
+function fitBox(b){const W=cw(),H=ch(),I=uiInsets(),TOP_UI=I.top,BOT_UI=I.bot,side=isNarrow()?12:40,availH=H-TOP_UI-BOT_UI-16,availW=W-side-I.right;
   const s=Math.min(availW/(b.x1-b.x0),availH/(b.y1-b.y0));
-  const w=W/s,h=H/s,cx=(b.x0+b.x1)/2,cyScreen=TOP_UI+8+availH/2,cxScreen=I.left+(W-I.left)/2;
+  const w=W/s,h=H/s,cx=(b.x0+b.x1)/2,cyScreen=TOP_UI+8+availH/2,cxScreen=(W-I.right)/2;
   return{x:cx-cxScreen/s,y:(b.y0+b.y1)/2-cyScreen/s,w,h}}
 const fitAll=()=>fitBox(WORLD);
 let FIT_W=1200;
