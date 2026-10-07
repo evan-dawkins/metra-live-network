@@ -35,6 +35,8 @@
   --pressed:rgba(255,255,255,.09);
   --soft:rgba(255,255,255,.04);
   --shadow:0 8px 28px rgba(0,0,0,.35);
+  /* motion: three speeds, one easing */
+  --t-fast:.15s;--t-base:.22s;--t-slow:.45s;--ease:cubic-bezier(.2,.7,.2,1);--ease-io:cubic-bezier(.6,0,.2,1);
   color-scheme:dark;
 }
 /* light theme: same layout and line colours, daylight surfaces */
@@ -67,7 +69,8 @@
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden;
   -webkit-font-smoothing:antialiased}
-button{font-family:inherit;color:inherit}
+button{font-family:inherit;color:inherit;transition:background-color var(--t-fast),color var(--t-fast),border-color var(--t-fast),opacity var(--t-fast)}
+*{-webkit-tap-highlight-color:transparent}
 button:focus-visible,.train:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
 #stage{position:absolute;inset:0;cursor:grab}
@@ -87,21 +90,22 @@ svg#labels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
 /* ---------- welcome panel + its corner button ---------- */
 #helpBtn,.ibtn{width:26px;height:26px;border-radius:50%;border:1px solid var(--edge);background:var(--soft);color:var(--muted);
   font-size:15px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;flex:none;
-  transition:color .2s,background .2s,box-shadow .4s,opacity 1.2s ease}
+  transition:color var(--t-fast),background-color var(--t-fast),box-shadow .4s,opacity var(--t-base) ease}
+body.idle #helpBtn,body.idle .ibtn{transition:color var(--t-fast),background-color var(--t-fast),box-shadow .4s,opacity 1.2s ease}
 #helpBtn:hover,.ibtn:hover{color:var(--ink);background:var(--pressed)}
 .mark .tools{display:flex;gap:6px;margin-left:2px}
 .ibtn svg{width:15px;height:15px}
 .theme svg *{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 :root[data-theme="light"] .theme .sun,:root:not([data-theme="light"]) .theme .moon{display:none}
 #helpBtn.catch{box-shadow:0 0 0 6px rgba(95,211,155,.22);color:var(--ink)}
-#introVeil{position:absolute;inset:0;background:rgba(5,12,20,.38);opacity:0;pointer-events:none;transition:opacity .45s ease;z-index:20}
+#introVeil{position:absolute;inset:0;background:rgba(5,12,20,.38);opacity:0;pointer-events:none;transition:opacity var(--t-slow) ease;z-index:20}
 :root[data-theme="light"] #introVeil{background:rgba(20,34,46,.16)}
 #introVeil.on{opacity:1;pointer-events:auto}
 #intro{position:absolute;left:50%;top:50%;width:min(470px,calc(100vw - 24px));max-height:calc(100vh - 40px);overflow-y:auto;
   background:var(--panel);border:1px solid var(--edge);border-radius:14px;box-shadow:var(--shadow);padding:22px 24px 18px;z-index:21;
   transform:translate(-50%,-50%);transform-origin:0 0;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 #intro[hidden]{display:none}
-#intro.anim{transition:transform .55s cubic-bezier(.6,0,.2,1),opacity .5s ease,border-radius .55s}
+#intro.anim{transition:transform .5s var(--ease-io),opacity .45s ease,border-radius .5s}
 #intro .kick{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--live);font-weight:600;display:flex;align-items:center;gap:7px}
 #intro .kick i{width:7px;height:7px;border-radius:50%;background:var(--live)}
 #intro h2{margin:6px 0 10px;font-size:26px;line-height:1.1;font-weight:700}
@@ -133,10 +137,6 @@ svg#labels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
 .state.sim i{background:none;border:2px solid #A98BF0;width:10px;height:10px} .state.sim{color:#A98BF0}
 :root[data-theme="light"] .state.sim{color:#6D4FC4} :root[data-theme="light"] .state.sim i{border-color:#6D4FC4}
 @keyframes beat{0%,100%{opacity:1}50%{opacity:.3}}
-.next{display:flex;align-items:center;gap:6px}
-.next svg{width:16px;height:16px;transform:rotate(-90deg)}
-.next .trackc{fill:none;stroke:var(--faint);stroke-width:2.4}
-.next .prog{fill:none;stroke:var(--muted);stroke-width:2.4;stroke-dasharray:37.7;transition:stroke-dashoffset .9s linear}
 .clock{font-variant-numeric:tabular-nums;color:var(--ink)}
 #updated{display:none} body.trouble #updated{display:inline}
 .state{cursor:default}
@@ -147,6 +147,9 @@ svg#labels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
 .ctog:hover{background:var(--hover);color:var(--ink)}
 .ctog .cur{display:none;align-items:center;gap:6px;color:var(--ink)} .ctog .cur i{width:14px;height:4px;border-radius:2px}
 .console.min .chip,.console.min .focusnote{display:none!important}
+.console.folding{overflow:hidden;flex-wrap:nowrap;transition:width var(--t-slow) var(--ease-io)}
+.console.folding .chip{transition:opacity var(--t-base)}
+.console.folding.shut .chip,.console.folding.shut .focusnote{opacity:0}
 .console.min .ctog .cur{display:inline-flex}
 .console{position:absolute;left:calc(14px + env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:4px;
   background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:5px;max-width:calc(100vw - 180px);flex-wrap:wrap}
@@ -157,6 +160,13 @@ svg#labels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
 .chip[aria-pressed="true"]{background:var(--pressed);color:var(--ink)}
 .chip .n{font-weight:500;color:var(--muted);font-size:12.5px;min-width:1ch}
 .chip.all{color:var(--ink)}
+/* ---------- panels: shared open/close motion (fade + slight scale; reverses on close) ---------- */
+.pnl{visibility:hidden;opacity:0;scale:.97;pointer-events:none;
+  transition:opacity var(--t-base) var(--ease),scale var(--t-base) var(--ease),translate var(--t-base) var(--ease),visibility 0s linear var(--t-base)}
+.pnl.on{visibility:visible;opacity:1;scale:1;translate:0 0;pointer-events:auto;
+  transition:opacity var(--t-base) var(--ease),scale var(--t-base) var(--ease),translate var(--t-base) var(--ease),visibility 0s}
+#apanel.pnl{translate:0 -6px;transform-origin:100% 0}
+#notice.pnl{translate:0 -6px}
 /* ---------- service alerts ---------- */
 .abtn{display:none;align-items:center;gap:7px;height:28px;padding:0 11px 0 9px;border-radius:14px;border:1px solid var(--edge);
   background:var(--soft);cursor:pointer;font-size:14px;font-weight:600;color:var(--muted);white-space:nowrap}
@@ -168,9 +178,8 @@ svg#labels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
 .abtn.fresh{animation:alertin 2.4s ease-out}
 @keyframes alertin{0%{box-shadow:0 0 0 0 rgba(232,177,78,.55)}100%{box-shadow:0 0 0 10px rgba(232,177,78,0)}}
 #apanel{position:absolute;top:calc(52px + env(safe-area-inset-top,0px));right:calc(14px + env(safe-area-inset-right,0px));width:392px;
-  max-height:min(62vh,560px);display:none;flex-direction:column;background:var(--panel);border:1px solid var(--edge);border-radius:12px;
-  box-shadow:var(--shadow);z-index:5;overflow:hidden;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-#apanel.on{display:flex}
+  max-height:min(62vh,560px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--edge);border-radius:12px;
+  box-shadow:var(--shadow);z-index:5;overflow:hidden}
 #apanel .ahd{display:flex;align-items:baseline;gap:8px;padding:11px 12px 9px 14px;border-bottom:1px solid var(--edge)}
 #apanel .ahd b{font-size:15px;font-weight:700}
 #apanel .ahd span{font-size:13px;color:var(--muted)}
@@ -180,15 +189,18 @@ svg#labels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
 .aitem{display:grid;grid-template-columns:4px 1fr;gap:0 11px;padding:10px 14px 10px 12px;border-bottom:1px solid var(--edge);cursor:pointer}
 .aitem:last-child{border-bottom:0}
 .aitem:hover{background:var(--hover)}
+.aitem{transition:background-color var(--t-fast)}
 .aitem .bars{display:flex;flex-direction:column;gap:2px;border-radius:2px;overflow:hidden}
 .aitem .bars i{flex:1;min-height:6px}
 .aitem .tags{display:flex;flex-wrap:wrap;gap:4px 8px;font-size:12.5px;color:var(--muted);margin-bottom:3px}
 .aitem .tags .fx{color:var(--warn);font-weight:600}
 .aitem .h{font-size:14.5px;line-height:1.3}
-.aitem .more{display:none;margin-top:7px;font-size:13.5px;line-height:1.45;color:var(--muted);white-space:pre-wrap}
+.aitem .more{display:grid;grid-template-rows:0fr;opacity:0;margin-top:0;font-size:13.5px;line-height:1.45;color:var(--muted);white-space:pre-wrap;
+  transition:grid-template-rows var(--t-base) var(--ease),opacity var(--t-base) var(--ease),margin-top var(--t-base) var(--ease)}
+.aitem .more>div{overflow:hidden;min-height:0}
 .aitem .more a{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1px solid var(--faint)}
-.aitem.open .more{display:block}
-.aitem .chev{float:right;color:var(--faint);font-size:12px;margin-left:6px;transition:transform .15s}
+.aitem.open .more{grid-template-rows:1fr;opacity:1;margin-top:7px}
+.aitem .chev{float:right;color:var(--faint);font-size:12px;margin-left:6px;transition:transform var(--t-base) var(--ease)}
 .aitem.open .chev{transform:rotate(180deg)}
 #apanel .aempty{padding:18px 14px;font-size:14px;color:var(--muted)}
 .chip .ad{width:5px;height:5px;border-radius:50%;background:var(--warn);margin-left:-2px;align-self:flex-start;margin-top:8px;display:none}
@@ -218,7 +230,8 @@ body.focused .focusnote{display:block}
 .snd.wait .w1,.snd.wait .w2{opacity:.4}
 
 /* ---------- ambient: controls recede after ~10 s without input ---------- */
-.console,.zoom,#fstrip{transition:opacity 1.2s ease}
+.console,.zoom,#fstrip{transition:opacity var(--t-base) ease}
+body.idle .console,body.idle .zoom{transition:opacity 1.2s ease}
 body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.32}
 
 /* ---------- line bullet (sign-style line code) ---------- */
@@ -228,8 +241,7 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 
 /* ---------- floating train overlay ---------- */
 #card{position:absolute;left:0;top:0;width:276px;background:var(--panel);border:1px solid var(--edge);border-radius:12px;padding:0;
-  display:none;font-size:14px;will-change:transform;box-shadow:var(--shadow);overflow:hidden;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-#card.on{display:block}
+  display:block;font-size:14px;will-change:transform;box-shadow:var(--shadow);overflow:hidden;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transform-origin:0 50%}
 #card .hd{display:flex;align-items:flex-start;gap:9px;padding:10px 6px 0 12px}
 #card .hd .bullet{margin-top:1px}
 #card .ttl{font-weight:600;font-size:14.5px;line-height:1.2}
@@ -251,9 +263,8 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 #card .fl[aria-pressed="true"]{border-color:var(--live);color:var(--live)}
 
 /* ---------- station popover ---------- */
-#spop{position:absolute;left:0;top:0;width:318px;display:none;background:var(--panel);border:1px solid var(--edge);border-radius:12px;
+#spop{position:absolute;left:0;top:0;width:318px;display:block;transform-origin:0 0;background:var(--panel);border:1px solid var(--edge);border-radius:12px;
   box-shadow:var(--shadow);padding:10px 12px 11px;z-index:7;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-#spop.on{display:block}
 #spop .nm{font-weight:700;font-size:17px;line-height:1.2;padding-right:22px}
 #spop .ln{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 2px}
 #spop .x{position:absolute;right:6px;top:6px;background:none;border:0;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;padding:2px 6px;border-radius:5px}
@@ -272,7 +283,7 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 /* ---------- favorite stations board (a small departure sign) ---------- */
 #board{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));top:calc(58px + env(safe-area-inset-top,0px));width:318px;
   max-height:calc(100% - 150px);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--edge);border-radius:12px;
-  box-shadow:var(--shadow);z-index:3;overflow:hidden;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+  box-shadow:var(--shadow);z-index:3;overflow:hidden}
 #board .bh{display:flex;align-items:center;gap:8px;padding:8px 6px 7px 12px;flex:none}
 #board .bh .cnt{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 #board .bh .simtag{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#A98BF0;border:1px solid currentColor;border-radius:4px;padding:1px 4px}
@@ -281,7 +292,7 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 #board .bh .col:hover{color:var(--ink);background:var(--hover)}
 #board .bl{overflow-y:auto;overscroll-behavior:contain;border-top:1px solid var(--edge)}
 #board.min{display:none}
-#board.fly{transition:transform .42s cubic-bezier(.6,0,.2,1),opacity .36s ease;transform-origin:0 0;pointer-events:none}
+#board.fly{transition:transform .32s var(--ease-io),opacity .28s ease;transform-origin:100% 0;pointer-events:none}
 #favBtn{display:none} body.favmin #favBtn{display:inline-flex}
 #favBtn svg{width:14px;height:14px} #favBtn svg path{fill:currentColor}
 #favBtn.catch{box-shadow:0 0 0 6px rgba(95,211,155,.22);color:var(--ink)}
@@ -315,9 +326,9 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 
 /* ---------- notice ---------- */
 #notice{position:absolute;left:50%;transform:translateX(-50%);top:calc(56px + env(safe-area-inset-top,0px));background:var(--panel);
-  border:1px solid var(--edge);border-radius:18px;padding:5px 6px 5px 14px;font-size:14px;max-width:min(620px,calc(100vw - 28px));display:none;
+  border:1px solid var(--edge);border-radius:18px;padding:5px 6px 5px 14px;font-size:14px;max-width:min(620px,calc(100vw - 28px));display:flex;
   color:var(--ink);align-items:center;gap:6px 12px;flex-wrap:wrap;z-index:4;box-shadow:var(--shadow)}
-#notice.on{display:flex}
+
 #notice .msg{flex:1 1 220px;min-width:0;line-height:1.3;padding:3px 0}
 #notice span{color:var(--muted)}
 #notice .acts{display:flex;gap:6px;flex:none;margin-left:auto}
@@ -349,9 +360,6 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
   100%{opacity:0;transform:translate(36px,0)}}
 .rp{fill:none;stroke:var(--wave);stroke-width:1.1px;vector-effect:non-scaling-stroke;opacity:0;transform-box:fill-box;transform-origin:center;
   animation:rp var(--dur,14s) linear var(--dl,0s) infinite both}
-.swl{animation:swl var(--dur) linear infinite}
-@keyframes swl{from{transform:translateX(0)}to{transform:translateX(var(--wl))}}
-.swl path{fill:none;stroke:var(--wave);stroke-linecap:round;vector-effect:non-scaling-stroke}
 @keyframes rp{0%{opacity:0;transform:scale(.25)}18%{opacity:calc(.55 * var(--wmul))}100%{opacity:0;transform:scale(2.6)}}
 .track{fill:none;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-width:var(--tw);
   transition:opacity .35s}
@@ -360,6 +368,7 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 .term{fill:var(--term);stroke:var(--ink);stroke-width:2;vector-effect:non-scaling-stroke}
 .dim{opacity:.13}
 .stnhit{fill:transparent;cursor:pointer}
+.sg{transition:opacity .35s}
 .lbl{font-family:var(--sans);font-size:12.5px;font-weight:500;fill:var(--ink);paint-order:stroke;stroke:var(--bg);
   stroke-width:3.2px;stroke-linejoin:round;dominant-baseline:central}
 .lbl.t0{font-size:14px;font-weight:700}
@@ -379,9 +388,9 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 .train .glow{opacity:.15}
 .train.stale .glow{opacity:0}
 .train .body{stroke:var(--bg);stroke-width:1.7;stroke-linejoin:round}
-.train .ring{fill:none;stroke-width:1.4;opacity:0}
+.train .ring{fill:none;stroke-width:1.4;opacity:0;vector-effect:non-scaling-stroke;transform-box:fill-box;transform-origin:center}
 .train.ping .ring{animation:ping 1.4s ease-out}
-@keyframes ping{0%{opacity:.75;r:7}100%{opacity:0;r:22}}
+@keyframes ping{0%{opacity:.75;transform:scale(1)}100%{opacity:0;transform:scale(3.15)}}
 .train .halo{fill:none;stroke:var(--ink);stroke-width:1.5;opacity:0}
 .train:hover .halo{opacity:.45}
 .train.sel .halo{opacity:.95}
@@ -389,6 +398,8 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 .train.stale{opacity:.55}
 .train.dim{opacity:.1;pointer-events:none}
 .train.bye{opacity:0!important;transition:opacity .8s}
+.train.born,.trail.born{opacity:0!important}
+.train.grow{transition:opacity .6s} .trail.grow{transition:opacity .6s}
 button{touch-action:manipulation}
 .short{display:none}
 /* ---------- phones and narrow windows ---------- */
@@ -421,15 +432,21 @@ button{touch-action:manipulation}
     max-height:56vh;overflow-y:auto}
   #notice{left:8px;right:8px;transform:none;max-width:none;top:calc(50px + env(safe-area-inset-top,0px));font-size:13px;border-radius:14px}
   body.sheet .zoom,body.pop .zoom,body.boardsheet .zoom{display:none}
+  #card.pnl,#spop.pnl{scale:1;translate:0 24px}
+  #card.pnl.on,#spop.pnl.on{translate:0 0}
   /* favorites: a one-line strip above the line picker; tap it for the full board */
-  #board{display:none;left:8px;right:8px;top:auto;bottom:calc(58px + env(safe-area-inset-bottom,0px));width:auto!important;max-height:56vh;z-index:6}
-  body.boardsheet #board{display:flex}
+  #board{left:8px;right:8px;top:auto;bottom:calc(58px + env(safe-area-inset-bottom,0px));width:auto!important;max-height:56vh;z-index:6;
+    visibility:hidden;opacity:0;translate:0 24px;pointer-events:none;
+    transition:opacity var(--t-base) var(--ease),translate var(--t-base) var(--ease),visibility 0s linear var(--t-base)}
+  body.boardsheet #board{visibility:visible;opacity:1;translate:0 0;pointer-events:auto;
+    transition:opacity var(--t-base) var(--ease),translate var(--t-base) var(--ease),visibility 0s}
   #board.min{display:none} #favBtn{display:inline-flex}
   #fstrip{position:absolute;left:8px;right:8px;bottom:calc(56px + env(safe-area-inset-bottom,0px));height:38px;align-items:center;gap:8px;
     padding:0 10px 0 11px;background:var(--panel);border:1px solid var(--edge);border-radius:10px;font-size:14px;z-index:2;cursor:pointer;text-align:left;width:auto}
   body.hasfav #fstrip{display:flex}
   body.sheet #fstrip,body.pop #fstrip,body.boardsheet #fstrip{display:none}
   #fstrip .s{font-weight:700;white-space:nowrap;flex:none}
+  #fstrip>span{transition:opacity .2s ease} #fstrip.swap>span{opacity:0}
   #fstrip .i{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
   #fstrip .i b{color:var(--ink)}
   #fstrip .n{font-size:12px;color:var(--muted);flex:none}
@@ -437,7 +454,8 @@ button{touch-action:manipulation}
 }
 @media (max-width:420px){ #updated{display:none} }
 @media (hover:none){ #tip{display:none} }
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.25s;animation-timing-function:ease}
+@media (prefers-reduced-motion:reduce){*,::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important;transition:none!important}}
 @media (prefers-reduced-motion:reduce){.wv{opacity:calc(.3 * var(--wmul))}}
 </style>
 </head>
@@ -473,12 +491,12 @@ button{touch-action:manipulation}
   <button id="fit" class="fit" title="Show the whole network (0)" aria-label="Show the whole network"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/></svg></button>
 </div>
 
-<div id="card" role="dialog" aria-label="Train details"></div>
-<div id="spop" role="dialog" aria-label="Station"></div>
+<div id="card" class="pnl" role="dialog" aria-label="Train details"></div>
+<div id="spop" class="pnl" role="dialog" aria-label="Station"></div>
 <section id="board" aria-label="Your stations"></section>
 <button id="fstrip" aria-label="Open your stations"></button>
-<div id="apanel" role="dialog" aria-label="Service alerts"><div class="ahd"><b>Service alerts</b><span id="ascope"></span><button id="aclose" aria-label="Close alerts">×</button></div><div class="alist" id="alist"></div></div>
-<div id="notice" role="status"></div>
+<div id="apanel" class="pnl" role="dialog" aria-label="Service alerts"><div class="ahd"><b>Service alerts</b><span id="ascope"></span><button id="aclose" aria-label="Close alerts">×</button></div><div class="alist" id="alist"></div></div>
+<div id="notice" class="pnl" role="status"></div>
 <div id="tip"></div>
 <div id="introVeil"></div>
 <div id="intro" role="dialog" aria-modal="true" aria-labelledby="introTitle" hidden>
@@ -773,7 +791,7 @@ for(const key of ORDER){const L=LINES[key],g=el("g",{},trackG);
   lineEls[key]={track:g,stns:[]};}
 const gRec=new WeakMap();
 for(const rec of STATIONS){
-  const g=el("g",{},stnG);rec.g=g;
+  const g=el("g",{class:"sg"},stnG);rec.g=g;
   if(rec.tier===0){rec.kind="term";rec.shape=el("rect",{class:"term"},g)}
   else if(rec.multi){rec.kind="pill";rec.shape=el("rect",{class:"pill"},g)}
   else{const q=rec.inst[0];rec.kind="dot";rec.shape=el("circle",{class:"stn",cx:q.xy[0],cy:q.xy[1],stroke:LINES[q.key].color},g)}
@@ -820,7 +838,7 @@ function clampVB(){const cx=vb.x+vb.w/2,cy=vb.y+vb.h/2;
   const nx=Math.max(WORLD.x0,Math.min(WORLD.x1,cx)),ny=Math.max(WORLD.y0,Math.min(WORLD.y1,cy));
   vb.x+=nx-cx;vb.y+=ny-cy}
 function applyVB(){svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`)}
-function flyTo(t,ms=650){const f={...vb},t0=performance.now();
+function flyTo(t,ms=650){if(reduceMotion()){camAnim=null;Object.assign(vb,t);syncZoom();return}const f={...vb},t0=performance.now();
   camAnim=now=>{const k=Math.min(1,(now-t0)/ms),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
     for(const q of["x","y","w","h"])vb[q]=f[q]+(t[q]-f[q])*e;if(k>=1){camAnim=null;syncZoom()}}}
 function zoomAround(f,mx,my){camAnim=null;
@@ -885,7 +903,8 @@ function setTheme(t){
   themeBtn.setAttribute("aria-label",`Switch to ${to} mode`);themeBtn.title=`Switch to ${to} mode (T)`;
 }
 setTheme(matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark");
-themeBtn.onclick=e=>{if(e)e.stopPropagation();setTheme(document.documentElement.dataset.theme==="dark"?"light":"dark")};
+themeBtn.onclick=e=>{if(e)e.stopPropagation();const next=document.documentElement.dataset.theme==="dark"?"light":"dark";
+  if(document.startViewTransition&&!reduceMotion())document.startViewTransition(()=>setTheme(next));else setTheme(next)};
 /* ---- ambient brown noise ----
    On by default, very quiet. Browsers block sound until the page is clicked/tapped/keyed once,
    so it starts on the first interaction. A 12 s buffer is generated once, its ends crossfaded so
@@ -930,7 +949,7 @@ const intro=$("intro"),introVeil=$("introVeil"),helpBtn=$("helpBtn"),introHide=$
 let introOpen=false,introBusy=false;
 const store={get(){try{return localStorage.getItem(HIDE_KEY)==="1"}catch(_){return false}},
   set(v){try{v?localStorage.setItem(HIDE_KEY,"1"):localStorage.removeItem(HIDE_KEY)}catch(_){}}};
-const reduceMotion=()=>matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+function reduceMotion(){return!!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches)}
 function introRest(){return"translate(-50%,-50%)"}
 function introAtButton(){   // transform that puts the panel's top-left corner on the ? button, tiny
   const b=helpBtn.getBoundingClientRect(),st=stage.getBoundingClientRect();
@@ -1020,8 +1039,9 @@ function layoutLabels(){
   const UI=[{x0:0,y0:0,x1:W,y1:uiInsets().top-4}];          // don't draw labels under the top strip
   const consoleR=$("console").getBoundingClientRect(),zoomR=document.querySelector(".zoom").getBoundingClientRect(),sr=svg.getBoundingClientRect();
   for(const r of[consoleR,zoomR])UI.push({x0:r.left-sr.left-4,y0:r.top-sr.top-4,x1:r.right-sr.left+4,y1:r.bottom-sr.top+4});
-  for(const q of[$("card"),$("notice"),$("spop"),$("board"),$("fstrip")]){if(!q.offsetHeight)continue;const r=q.getBoundingClientRect();
-    UI.push({x0:r.left-sr.left-3,y0:r.top-sr.top-3,x1:r.right-sr.left+3,y1:r.bottom-sr.top+3})}
+  for(const q of[$("card"),$("notice"),$("spop"),$("board"),$("fstrip")]){if(!q.offsetHeight||(q.classList.contains("pnl")&&!q.classList.contains("on"))||getComputedStyle(q).visibility==="hidden")continue;const r=q.getBoundingClientRect();
+    const gx=r.width*.03+3,gy=r.height*.03+3;     // panels may still be scaling in: leave room for their full size
+    UI.push({x0:r.left-sr.left-gx,y0:r.top-sr.top-gy,x1:r.right-sr.left+gx,y1:r.bottom-sr.top+gy})}
   const placed=[],out=[],PAD=3,FS=labelScale();
   const hit=(b,list)=>{for(const p of list)if(b.x0<p.x1&&b.x1>p.x0&&b.y0<p.y1&&b.y1>p.y0)return true;return false};
   const cands=[];
@@ -1120,7 +1140,14 @@ function syncLineBar(){consoleEl.classList.toggle("min",linesMin);
   ctog.innerHTML=`<span class="cur">${cur}</span><span aria-hidden="true">${linesMin?"▸":"◂"}</span>`;
   ctog.setAttribute("aria-expanded",String(!linesMin));
   ctog.setAttribute("aria-label",linesMin?"Show all the line buttons":"Fold the line buttons away");ctog.title=linesMin?"Show lines":"Hide lines";labelsDirty=true}
-ctog.onclick=()=>{linesMin=!linesMin;try{linesMin?localStorage.setItem(LINES_MIN_KEY,"1"):localStorage.removeItem(LINES_MIN_KEY)}catch(_){}syncLineBar()};
+let foldT=0;
+ctog.onclick=()=>{linesMin=!linesMin;try{linesMin?localStorage.setItem(LINES_MIN_KEY,"1"):localStorage.removeItem(LINES_MIN_KEY)}catch(_){}
+  const el=consoleEl;clearTimeout(foldT);el.classList.remove("folding","shut");el.style.width="";
+  if(reduceMotion()){syncLineBar();return}
+  const w0=el.offsetWidth;el.classList.toggle("min",linesMin);const w1=el.offsetWidth;el.classList.toggle("min",!linesMin);   // measure both ends
+  el.style.width=w0+"px";el.classList.add("folding");if(!linesMin){el.classList.remove("min");syncLineBar();el.classList.add("shut")}
+  void el.offsetWidth;el.style.width=w1+"px";if(linesMin)el.classList.add("shut");else el.classList.remove("shut");
+  foldT=setTimeout(()=>{el.classList.remove("folding","shut");el.style.width="";syncLineBar()},470)};
 syncLineBar();
 function lineBounds(key){let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   for(const r of LINES[key].routes)for(const p of r.anc){x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])}
@@ -1199,8 +1226,9 @@ function drawTrail(t,r,p,now,k){
   const T=t.trail;
   let d0=h[0][1],diff=p.d-d0;const cap=TRAIL_MAX_PX*k;
   if(Math.abs(diff)>cap){d0=p.d-Math.sign(diff)*cap;diff=p.d-d0}
-  if(Math.abs(diff)<3*k||t.stale){T.g.style.display="none";return}
-  T.g.style.display="";
+  if(Math.abs(diff)<3*k||t.stale){if(T.g.style.display!=="none")T.g.style.display="none";T.key="";return}
+  if(T.g.style.display)T.g.style.display="";
+  const tk=d0.toFixed(2)+"|"+p.d.toFixed(2)+"|"+t.ri;if(tk===T.key)return;T.key=tk;      // nothing moved: skip the redraw
   const pts=trackPath(r,d0,p.d),dStr="M"+pts.map(q=>q[0].toFixed(2)+","+q[1].toFixed(2)).join("L");
   T.band.setAttribute("d",dStr);T.core.setAttribute("d",dStr);
   const tail=along(r.anc,r.ac,d0);
@@ -1234,6 +1262,9 @@ function ingest(data){
       const now=performance.now();
       if(!t){
         const vis=makeTrainVisual(L),p=poseAt(L.routes[loc.ri],loc.s);
+        if(!reduceMotion()){for(const q of[vis.g,vis.trail.g])q.classList.add("born","grow");
+          requestAnimationFrame(()=>requestAnimationFrame(()=>{for(const q of[vis.g,vis.trail.g])q.classList.remove("born");
+            setTimeout(()=>{for(const q of[vis.g,vis.trail.g])q.classList.remove("grow")},700)}))}
         t={id,L,ri:loc.ri,segFrom:loc.s,segTo:loc.s,segT0:now,segDur:1,lastObsS:loc.s,dirSign:0,
            updated:fix,lastSeen:Date.now(),stale:false,shown:[p.x,p.y],ang:0,a11y:"",...vis};
         t.run=runLabel(v);t.trip=v.trip_id||null;
@@ -1346,7 +1377,7 @@ function renderAlerts(){
     const fx=a.effect?`<span class="fx">${esc(a.effect)}</span>`:"";
     const until=a.end?`<span>${esc(fmtUntil(a.end))}</span>`:"";
     const body=a.desc||a.url;
-    const more=body?`<div class="more">${esc(a.desc)}${a.url?`${a.desc?"\n\n":""}<a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Details on metra.com</a>`:""}</div>`:"";
+    const more=body?`<div class="more"><div>${esc(a.desc)}${a.url?`${a.desc?"\n\n":""}<a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Details on metra.com</a>`:""}</div></div>`:"";
     return`<div class="aitem${openAlerts.has(a.id)?" open":""}" data-id="${esc(a.id)}" ${body?'role="button" tabindex="0" aria-expanded="'+openAlerts.has(a.id)+'"':""}>`
       +`<span class="bars">${bars}</span><div><div class="tags"><span>${esc(tags[0])}</span>${fx}${until}${body?'<span class="chev" aria-hidden="true">▾</span>':""}</div>`
       +`<div class="h">${esc(a.header||a.desc.split("\n")[0])}</div>${more}</div></div>`}).join("");
@@ -1423,7 +1454,7 @@ function refreshStatus(){
   if(fails>0||age>POLL*1.6){setState("warn","Delayed");notice("");return}
   if(!trains.length){setState("live","Live");notice(`No Metra trains are reporting right now. <span>Normal overnight. The map fills in when service starts.</span>`);return}
   if(trains.every(t=>t.stale)){setState("warn","Feed not moving");notice(`Metra's feed is answering, but no train has reported a new position recently.`);return}
-  notice("");setState(inflight?"busy":"live",inflight?"Updating":"Live");
+  notice("");setState(inflight?"busy":"live","Live");
 }
 function tickHeader(){
   const now=new Date();$("clock").textContent=now.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
@@ -1622,13 +1653,14 @@ function renderStationPop(){const rec=spopRec;if(!rec)return;
     +stationSchedule(rec,3)
     +`<button class="star" aria-pressed="${on}" ${full?"disabled":""}>${on?"★ On your board":"☆ Add to your board"}</button>`
     +(full?`<div class="note">Your board holds ${FAV_MAX} stations. Remove one to add this.</div>`:on?`<div class="note">Click again to remove it.</div>`:"");
-  if(html===spopSig)return;spopSig=html;spop.innerHTML=html;
+  if(html===spopSig)return;spopSig=html;spop.innerHTML=html;labelsDirty=true;
   spop.querySelector(".x").onclick=closeStationPop;spop.querySelector(".star").onclick=()=>toggleFav(rec)}
 function placeStationPop(){if(!spopRec)return;if(isNarrow()){spop.style.transform="";return}
   const sx=cw()/vb.w,sy=ch()/vb.h,px=(spopRec.xy[0]-vb.x)*sx,py=(spopRec.xy[1]-vb.y)*sy,w=spop.offsetWidth,h=spop.offsetHeight,W=cw(),H=ch(),I=uiInsets();
   let x=px+18,y=py-24;if(x+w>W-12)x=px-18-w;x=Math.max(12,Math.min(W-w-12,x));y=Math.max(I.top,Math.min(H-I.bot-h-6,y));
-  spop.style.transform=`translate(${x.toFixed(0)}px,${y.toFixed(0)}px)`}
+  const tf=`translate(${x.toFixed(0)}px,${y.toFixed(0)}px)`;if(tf!==spop.style.transform){spop.style.transform=tf;labelsDirty=true}}
 spop.addEventListener("pointerdown",e=>e.stopPropagation());
+for(const q of document.querySelectorAll(".pnl"))q.addEventListener("transitionend",e=>{if(e.target===q&&(e.propertyName==="scale"||e.propertyName==="translate"))labelsDirty=true});   // re-place labels once a panel settles
 
 /* ---- the board ---- */
 const board=$("board"),fstrip=$("fstrip");let boardSig="";
@@ -1658,22 +1690,21 @@ board.addEventListener("click",e=>{
   const f=e.target.closest(".fav");if(!f)return;const rec=STN.get(f.dataset.id);if(!rec)return;
   if(e.target.closest(".rm")){toggleFav(rec);return}
   if(e.target.closest(".go")){closeBoardSheet();const z=Math.min(vb.w,FIT_W*.45),r=cw()/ch();stopFollowing();
-    flyTo({x:rec.xy[0]-z/2,y:rec.xy[1]-z/r/2,w:z,h:z/r});setTimeout(()=>openStationPop(rec),300)}});
+    flyTo({x:rec.xy[0]-z/2,y:rec.xy[1]-z/r/2,w:z,h:z/r});setTimeout(()=>openStationPop(rec),reduceMotion()?0:680)}});
 /* desktop: the board tucks into the ★ next to the title, and grows back out of it */
 const favBtn=$("favBtn");
-function boardAtStar(){const b=favBtn.getBoundingClientRect(),r=board.getBoundingClientRect();
-  return`translate(${(b.left-r.left).toFixed(0)}px,${(b.top-r.top).toFixed(0)}px) scale(${Math.max(.05,b.width/r.width).toFixed(3)})`}
+function boardAtStar(){return"scale(.86)"}   // shrink into its own top corner
 let boardAnim=0;
 function setBoardMin(min){clearTimeout(boardAnim);
   if(min===FAV.min&&!board.classList.contains("fly"))return;
   FAV.min=min;saveFav();boardSig="";
   if(reduceMotion()){board.classList.remove("fly");renderBoard();refit();if(min)favBtn.focus({preventScroll:true});return}
   if(min){document.body.classList.add("favmin");board.classList.add("fly");board.style.transform=boardAtStar();board.style.opacity="0";
-    boardAnim=setTimeout(()=>{board.classList.remove("fly");board.style.transform=board.style.opacity="";renderBoard();refit();
-      favBtn.classList.add("catch");setTimeout(()=>favBtn.classList.remove("catch"),700)},430)}
+    favBtn.classList.add("catch");setTimeout(()=>favBtn.classList.remove("catch"),900);
+    boardAnim=setTimeout(()=>{board.classList.remove("fly");board.style.transform=board.style.opacity="";renderBoard();refit()},330)}
   else{board.classList.remove("min");renderBoard();board.style.transform=boardAtStar();board.style.opacity="0";void board.offsetWidth;
     board.classList.add("fly");requestAnimationFrame(()=>{board.style.transform="";board.style.opacity=""});
-    boardAnim=setTimeout(()=>{board.classList.remove("fly");refit()},450)}
+    boardAnim=setTimeout(()=>{board.classList.remove("fly");refit()},350)}
 }
 favBtn.onclick=e=>{e.stopPropagation();if(isNarrow()){closeStationPop();if(selected)closeCard();document.body.classList.add("boardsheet");boardSig="";renderBoard();return}setBoardMin(!FAV.min)};
 
@@ -1684,7 +1715,9 @@ function tickStrip(){if(!isNarrow())return;const favs=FAV.ids.map(id=>STN.get(id
   if(mode!=="sim"&&feedHealthy()&&trips){const p=predictionsAt(rec,nowSec)[0];info=p?`<b>${minsTo(p.tm,nowSec)}</b> · ${LINES[p.key].code} ${p.ends?"arriving":"to "+esc(p.dest)}`:"No trains on the way"}
   else{const r=arrivalRows(rec,1);info=r.msg||r.html.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim()}
   const html=`<span class="s">★ ${esc(rec.label)}</span><span class="i">${info}</span>${favs.length>1?`<span class="n">${stripIdx%favs.length+1}/${favs.length}</span>`:""}`;
-  if(fstrip.dataset.h!==html){fstrip.innerHTML=html;fstrip.dataset.h=html}}
+  if(fstrip.dataset.h!==html){const first=!fstrip.dataset.h;fstrip.dataset.h=html;
+    if(first||reduceMotion()){fstrip.innerHTML=html;return}
+    fstrip.classList.add("swap");setTimeout(()=>{fstrip.innerHTML=fstrip.dataset.h;fstrip.classList.remove("swap")},200)}}
 fstrip.addEventListener("pointerdown",e=>e.stopPropagation());
 fstrip.onclick=()=>{closeStationPop();if(selected)closeCard();document.body.classList.add("boardsheet");boardSig="";renderBoard()};
 
@@ -1700,7 +1733,6 @@ renderBoard();
    MAIN LOOP
    ===================================================================== */
 FIT_W=fitAll().w;vb=fitAll();applyVB();syncZoom();
-const SWELL_G=[...document.querySelectorAll(".swl")];let lastSwell="";
 let lastFrame=performance.now(),labelT=0,cardT=0,statusT=0,lastVB="",lastMarkW=-1;
 function frame(now){
   const dt=Math.min(.25,(now-lastFrame)/1000);lastFrame=now;
@@ -1711,16 +1743,19 @@ function frame(now){
     if(stale!==t.stale){t.stale=stale;t.g.classList.toggle("stale",stale)}
     drawTrail(t,r,p,now,k);
     const known=t.dirSign!==0;
-    t.arrow.style.display=known?"":"none";t.dot.style.display=known?"none":"";
-    t.g.setAttribute("transform",`translate(${p.x.toFixed(2)},${p.y.toFixed(2)}) scale(${k.toFixed(4)})`);
-    if(known)t.inner.setAttribute("transform",`rotate(${((t.dirSign<0?p.ang+Math.PI:p.ang)*180/Math.PI).toFixed(1)})`);
+    if(t.known!==known){t.known=known;t.arrow.style.display=known?"":"none";t.dot.style.display=known?"none":""}
+    const tf=`translate(${p.x.toFixed(2)},${p.y.toFixed(2)}) scale(${k.toFixed(4)})`;if(tf!==t.tf){t.tf=tf;t.g.setAttribute("transform",tf)}
+    if(known){const want=(t.dirSign<0?p.ang+Math.PI:p.ang)*180/Math.PI;
+      if(t.rot==null||reduceMotion())t.rot=want;else{let d=((want-t.rot)%360+540)%360-180;t.rot+=Math.abs(d)<.3?d:d*(1-Math.exp(-dt/.09))}  // turn at bends over ~0.15 s
+      const rs=`rotate(${t.rot.toFixed(1)})`;if(rs!==t.rs){t.rs=rs;t.inner.setAttribute("transform",rs)}}
     const a=`${t.L.name} line${trainLabel(t)?", "+trainLabel(t).toLowerCase():""}, ${dirText(t).toLowerCase()}${t.stale?", position out of date":""}`;
     if(a!==t.a11y){t.a11y=a;t.g.firstChild.textContent=a}
   }
   if(following&&!camAnim&&!drag){
     const cx=vb.x+vb.w/2,cy=vb.y+vb.h/2;
     let oy=0;if(isNarrow()&&card.classList.contains("on"))oy=card.offsetHeight/2*(vb.h/ch());
-    vb.x+=(following.shown[0]-cx)*.05;vb.y+=(following.shown[1]+oy-cy)*.05;
+    const f=reduceMotion()?1:1-Math.pow(.95,dt*60);                 // same feel at 60 Hz, 120 Hz or 144 Hz
+    vb.x+=(following.shown[0]-cx)*f;vb.y+=(following.shown[1]+oy-cy)*f;
   }
   if(camAnim)camAnim(now);
   applyVB();
@@ -1728,10 +1763,8 @@ function frame(now){
   if(key!==lastVB){lastVB=key;labelsDirty=true;
     const z=FIT_W/vb.w;document.documentElement.style.setProperty("--tw",Math.max(2.4,Math.min(6.5,2.6+1.5*Math.log2(Math.max(1,z)))).toFixed(2)+"px");
     if(Math.abs(vb.w-lastMarkW)>1e-6){lastMarkW=vb.w;updateMarkers()}
-    {const gap=58*cw()/vb.w,o=Math.max(0,Math.min(1,(gap-7)/9)).toFixed(2);      // swells fade out when they'd crowd into stripes
-     if(o!==lastSwell){lastSwell=o;for(const q of SWELL_G)q.style.opacity=o}}
     positionLabels()}
-  labelT-=dt;if(labelT<=0&&labelsDirty){labelT=.12;labelsDirty=false;renderLabels()}
+  labelT-=dt;if(labelT<=0&&labelsDirty&&!camAnim){labelT=.12;labelsDirty=false;renderLabels()}   // during a camera glide labels just ride along; re-placed when it lands
   placeCard();placeStationPop();
   cardT-=dt;if(cardT<=0){cardT=1;if(selected)renderCard();if(spopRec)renderStationPop();renderBoard()}
   statusT-=dt;if(statusT<=0){statusT=1;refreshStatus();tickHeader();tickIdle();tickStrip()}
