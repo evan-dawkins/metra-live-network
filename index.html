@@ -727,9 +727,9 @@ const borderG=el("g",{"aria-hidden":"true"},world),STATE_LBL=[];
  const sc=STN.get("93rd St|South Chicago")||STN.get("93rd St"),ix=Math.max(1150,(sc?sc.xy[0]:1092)+50);
  el("path",{class:"border",d:`M${ix},1000 L${ix},4500`},borderG);
  SL("INDIANA",ix,1420,12,0,"start");
- /* county lines: schematic like the state lines. Each one crosses a track halfway between the last
-    station in one county and the first in the next, then runs in straight and 45-degree steps. */
- const COUNTY_LINES=["M374,511 L376,511 L420,467 L422,467 L422,493 L482,553 L482,579 L482,643 L502,643 L502,703 L442,703 L418,727 L358,727 L358,733 L466,841 L466,847 L404,847 L264,987 L202,987 L192,987 L68,1111 L58,1111", "M254,587 L298,587 L298,585 L370,513 L370,511", "M202,407 L218,407 L238,427 L254,427 L254,587", "M892,299 L666,279 L450,307 L418,307 L374,263 L342,263", "M342,263 L342,265 L202,405 L202,407", "M54,1119 L434,1119 L434,1243 L434,1249 L458,1273 L458,1279 L542,1279 L542,1275 L570,1247 L570,1243 L570,1245 L774,1449 L774,1451 L1150,1439", "M254,587 L150,587 L150,731 L58,731 L58,1111", "M202,407 L144,407 L100,363 L42,363 L-150,383", "M-150,1243 L-110,1243 L14,1119 L54,1119", "M218,35 L218,89 L274,145 L274,199 L276,199 L340,263 L342,263"],COUNTY_LBL=[{"t": "COOK", "x": 756, "y": 875}, {"t": "DU PAGE", "x": 230, "y": 860}, {"t": "KANE", "x": 120, "y": 609}, {"t": "LAKE", "x": 642, "y": 150}, {"t": "MCHENRY", "x": 156, "y": 95}, {"t": "WILL", "x": 522, "y": 1479}];
+ /* county lines: laid out like Metra's own system map (long straight lines with a few right-angle steps),
+    fitted to this diagram so every station sits in its real county. */
+ const COUNTY_LINES=["M295,35 L295,337", "M-400,337 L330,337 L330,300 L700,300 L700,248 L790,248 L790,297 L1150,297", "M251,337 L251,585 L149,585 L149,732 L58,732 L58,850", "M251,528 L489,528", "M489,528 L489,700 L426,700 L426,850", "M-400,850 L426,850", "M340,850 L340,1120 L450,1120 L450,1285 L860,1285 L860,1439 L1150,1439"],COUNTY_LBL=[{"t": "MCHENRY", "x": 200, "y": 75}, {"t": "LAKE", "x": 456, "y": 170}, {"t": "KANE", "x": 120, "y": 430}, {"t": "COOK", "x": 780, "y": 880}, {"t": "DU PAGE", "x": 222, "y": 622}, {"t": "WILL", "x": 190, "y": 1000}];
  for(const d of COUNTY_LINES)el("path",{class:"cborder",d},borderG);
  for(const q of COUNTY_LBL){const t=el("text",{class:"ctlbl","text-anchor":"middle"},borderG);t.textContent=q.t;STATE_LBL.push({t,x:q.x,y:q.y,dx:0,dy:4,fs:11})}
 }
