@@ -333,6 +333,8 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 .water{pointer-events:none}
 .wv{fill:none;stroke:var(--wave);stroke-width:1.4px;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;opacity:0;
   animation:wv var(--dur,16s) steps(48) var(--dl,0s) infinite both}
+.wv.dot{fill:var(--wave);stroke:none}
+.wv.ring{fill:none;stroke-width:1px}
 @keyframes wv{
   0%{opacity:0;transform:translate(0,0)}
   25%{opacity:calc(var(--a) * var(--wmul));transform:translate(9px,-1.6px)}
@@ -737,28 +739,21 @@ el("path",{class:"shore",d:"M800,-3000 L800,90 L892,182 L892,560 L975,643 L1048,
     let t=((x-a[0])*dx+(y-a[1])*dy)/l2;t=Math.max(0,Math.min(1,t));m=Math.min(m,Math.hypot(a[0]+dx*t-x,a[1]+dy*t-y))}return m};
   const cp=el("clipPath",{id:"lakeclip"},defs);el("path",{d:LAKE},cp);
   const g=el("g",{class:"water","clip-path":"url(#lakeclip)","aria-hidden":"true"},world);
-  const CW=250,CH=170;
+  // little circles: small dots that drift and fade, a few hollow rings among them
+  const CW=150,CH=110;
   for(let cy=-1250;cy<1360;cy+=CH)for(let cx=820;cx<2750;cx+=CW){
-    const x=cx+rnd()*CW,y=cy+rnd()*CH,humps=2+Math.floor(rnd()*3),len=humps*12;
-    const dur=13+rnd()*8,a=.35+rnd()*.5,dl=-rnd()*dur;
-    if(!inside(x,y)||!inside(x+len+40,y)||edge(x,y)<22||edge(x+len+40,y)<22)continue;
-    let d="M0,0 q6,-3.2 12,0";for(let h=1;h<humps;h++)d+=" t12,0";
+    const x=cx+rnd()*CW,y=cy+rnd()*CH;
+    if(!inside(x,y)||!inside(x+50,y)||edge(x,y)<18||edge(x+50,y)<18)continue;
+    const dur=13+rnd()*9,a=.35+rnd()*.55,dl=-rnd()*dur,ring=rnd()<.28,r=ring?3.2+rnd()*2.4:1.7+rnd()*1.9;
     const w=el("g",{transform:`translate(${x.toFixed(1)},${y.toFixed(1)})`},g);
-    el("path",{class:"wv",d,style:`--a:${a.toFixed(2)};--dur:${dur.toFixed(1)}s;--dl:${dl.toFixed(1)}s`},w);
+    el("circle",{class:"wv "+(ring?"ring":"dot"),r:r.toFixed(2),style:`--a:${a.toFixed(2)};--dur:${dur.toFixed(1)}s;--dl:${dl.toFixed(1)}s`},w);
   }
+  // slow ripples, now true circles
   for(let k=0,tries=0;k<11&&tries<400;tries++){
     const x=880+rnd()*1700,y=-1100+rnd()*2350;if(!inside(x,y)||edge(x,y)<70)continue;k++;
     const dur=11+rnd()*7;
-    el("ellipse",{class:"rp",cx:x.toFixed(1),cy:y.toFixed(1),rx:10,ry:3.6,style:`--dur:${dur.toFixed(1)}s;--dl:${(-rnd()*dur).toFixed(1)}s`},g);
+    el("circle",{class:"rp",cx:x.toFixed(1),cy:y.toFixed(1),r:6,style:`--dur:${dur.toFixed(1)}s;--dl:${(-rnd()*dur).toFixed(1)}s`},g);
   }
-
-  // rolling swells: two layers of long wave lines drifting at different speeds (parallax)
-  [{gap:58,amp:1.5,wl:56,dur:29,a:.2,sw:.9,dir:1},{gap:58,amp:2.2,wl:88,dur:21,a:.28,sw:1,dir:-1,off:29}].forEach(L=>{
-    const lg=el("g",{class:"swl",style:`--dur:${L.dur}s;--wl:${L.dir*L.wl}px`},g);
-    for(let y=-1300+(L.off||0);y<1380;y+=L.gap){const yy=y+(rnd()-.5)*14,x0=760-L.wl*(1+Math.floor(rnd()*2))-rnd()*L.wl;
-      let d=`M${x0.toFixed(1)},${yy.toFixed(1)} q${L.wl/4},${-L.amp} ${L.wl/2},0`;for(let x=x0+L.wl/2;x<2900;x+=L.wl/2)d+=` t${L.wl/2},0`;
-      let da=[];for(let k=0;k<6;k++)da.push((12+rnd()*34).toFixed(0),(30+rnd()*80).toFixed(0));      // broken crests, not ruled lines
-      el("path",{d,style:`stroke-width:${L.sw}px;stroke-opacity:calc(${(L.a*(.6+rnd()*.4)).toFixed(3)} * var(--wmul));stroke-dasharray:${da.join(" ")};stroke-dashoffset:${(-rnd()*600).toFixed(0)}`},lg)}});
 })();
 el("text",{class:"lakelbl",x:1150,y:420,transform:"rotate(90 1150 420)","text-anchor":"middle"},world).textContent="Lake Michigan";
 
