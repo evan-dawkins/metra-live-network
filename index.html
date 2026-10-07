@@ -955,12 +955,12 @@ themeBtn.onclick=e=>{if(e)e.stopPropagation();const next=document.documentElemen
    filter and volume; switching crossfades. Sonar shows a radar over the Loop that turns once per data refresh
    and pings once each time fresh data lands. */
 const sndBtn=$("snd"),sndMenu=$("sndmenu"),SND_KEY="metraLive.sound",SND_MODES=["brown","water","sonar","off"];
-const SND_LEVEL={brown:.07,water:.09,sonar:.05},SND_NAME={brown:"brown noise",water:"water",sonar:"sonar",off:"off"};
+const SND_LEVEL={brown:1,water:1,sonar:1},SND_NAME={brown:"brown noise",water:"water",sonar:"sonar",off:"off"};
 let sndMode="brown",sndLast="brown";
 try{const v=localStorage.getItem(SND_KEY);if(SND_MODES.includes(v))sndMode=v;
   const l=localStorage.getItem(SND_KEY+"Last");if(SND_MODES.includes(l)&&l!=="off")sndLast=l}catch(_){}
 if(sndMode!=="off")sndLast=sndMode;
-let sndOn=sndMode!=="off",actx=null,bus={},pingIn=null,bubbleTO=0,lastPingAt=0;
+let sndOn=sndMode!=="off",actx=null,bus={},pingIn=null,bubbleTO=0,waterBands=[],waterTO=0;
 function buildNoise(ctx){
   const sr=ctx.sampleRate,n=Math.floor(sr*12),fade=Math.floor(sr*1.5),raw=new Float32Array(n+fade);
   let last=0;for(let i=0;i<raw.length;i++){last=(last+0.02*(Math.random()*2-1))/1.02;raw[i]=last*3.5}
@@ -969,24 +969,39 @@ function buildNoise(ctx){
   for(let i=0;i<fade;i++){const t=i/fade;d[i]=raw[i]*t+raw[n+i]*(1-t)}       // seamless loop
   let mean=0;for(let i=0;i<n;i++)mean+=d[i];mean/=n;for(let i=0;i<n;i++)d[i]-=mean;
   return buf}
+function buildWhite(ctx){                                                     // plain hiss for the water: nothing like the brown-noise bed
+  const sr=ctx.sampleRate,n=Math.floor(sr*8),fade=Math.floor(sr*.8),raw=new Float32Array(n+fade);
+  for(let i=0;i<raw.length;i++)raw[i]=Math.random()*2-1;
+  const buf=ctx.createBuffer(1,n,sr),d=buf.getChannelData(0);
+  for(let i=0;i<n;i++)d[i]=raw[i];
+  for(let i=0;i<fade;i++){const t=i/fade;d[i]=raw[i]*t+raw[n+i]*(1-t)}
+  return buf}
 function startAudio(){
   if(actx)return;
   try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;actx=new AC()}catch(_){actx=null;return}
-  const buf=buildNoise(actx);
-  const bed=(freq,q)=>{const src=actx.createBufferSource();src.buffer=buf;src.loop=true;
-    const f=actx.createBiquadFilter();f.type="lowpass";f.frequency.value=freq;f.Q.value=q;
-    const g=actx.createGain();g.gain.value=0;src.connect(f).connect(g).connect(actx.destination);src.start(0,Math.random()*11);return{f,g}};
-  bus.brown=bed(650,.3).g;                                                    // brown noise, as before
-  const w=bed(380,.7);bus.water=w.g;                                          // water: darker, and the filter breathes like a slow swell
-  const lfo=actx.createOscillator(),depth=actx.createGain();lfo.frequency.value=.08;depth.gain.value=150;lfo.connect(depth).connect(w.f.frequency);lfo.start();
-  const so=bed(170,.5);bus.sonar=so.g;                                        // sonar: deep hull rumble plus a faint hum under the pings
-  const hum=actx.createOscillator(),hg=actx.createGain();hum.frequency.value=55;hg.gain.value=.22;hum.connect(hg).connect(so.g);hum.start();
-  pingIn=actx.createGain();                                                   // pings get a soft underwater echo
-  const dly=actx.createDelay(1),fb=actx.createGain(),dlp=actx.createBiquadFilter();
-  dly.delayTime.value=.34;fb.gain.value=.32;dlp.type="lowpass";dlp.frequency.value=1700;
-  pingIn.connect(so.g);pingIn.connect(dly);dly.connect(dlp);dlp.connect(fb);fb.connect(dly);dlp.connect(so.g);
+  const brownBuf=buildNoise(actx),whiteBuf=buildWhite(actx);
+  const master=()=>{const g=actx.createGain();g.gain.value=0;g.connect(actx.destination);return g};
+  const loop=buf=>{const src=actx.createBufferSource();src.buffer=buf;src.loop=true;src.start(0,Math.random()*(buf.duration-1));return src};
+  const filt=(type,freq,q)=>{const f=actx.createBiquadFilter();f.type=type;f.frequency.value=freq;f.Q.value=q;return f};
+  const gain=v=>{const g=actx.createGain();g.gain.value=v;return g};
+  // brown noise: unchanged
+  bus.brown=master();loop(brownBuf).connect(filt("lowpass",650,.3)).connect(gain(.07)).connect(bus.brown);
+  // water: narrow bands of hiss that wander around like moving water, plus the odd bubble. No brown bed.
+  bus.water=master();const wsrc=loop(whiteBuf);
+  waterBands=[340,560,880,1300].map((f,i)=>{const bp=filt("bandpass",f,7),g=gain(i===3?.07:.13);wsrc.connect(bp).connect(g).connect(bus.water);return{bp,g,base:f}});
+  // sonar: a muffled underwater rumble that slowly swells, with the ping on top
+  bus.sonar=master();
+  const swell=gain(.065),lfo=actx.createOscillator(),depth=gain(.024);lfo.frequency.value=.07;lfo.connect(depth).connect(swell.gain);lfo.start();
+  loop(brownBuf).connect(filt("lowpass",200,1.6)).connect(swell).connect(bus.sonar);
+  pingIn=gain(1);                                                             // pings: softened, with an underwater echo
+  const plp=filt("lowpass",2200,.4),dly=actx.createDelay(1),fb=gain(.3),dlp=filt("lowpass",1500,.5);dly.delayTime.value=.34;
+  pingIn.connect(plp);plp.connect(bus.sonar);plp.connect(dly);dly.connect(dlp);dlp.connect(fb);fb.connect(dly);dlp.connect(bus.sonar);
   applySound();
 }
+function wanderWater(){clearTimeout(waterTO);if(sndMode!=="water"||!actx)return;
+  const t=actx.currentTime;
+  for(const b of waterBands){b.bp.frequency.setTargetAtTime(b.base*(.7+Math.random()*.7),t,.9);b.g.gain.setTargetAtTime((b.base>1e3?.07:.13)*(.4+Math.random()*.9),t,.7)}
+  waterTO=setTimeout(wanderWater,900+Math.random()*900)}
 function applySound(fast){
   sndOn=sndMode!=="off";
   sndBtn.setAttribute("aria-pressed",String(sndOn));
@@ -994,7 +1009,7 @@ function applySound(fast){
   sndBtn.classList.toggle("wait",waiting);
   sndBtn.title=`Sound: ${SND_NAME[sndMode]}${waiting?", starts when you click anywhere":""}. Click to choose (M mutes)`;
   for(const q of sndMenu.querySelectorAll("[data-m]"))q.setAttribute("aria-checked",String(q.dataset.m===sndMode));
-  scheduleBubbles();document.body.classList.toggle("sonar",sndMode==="sonar");
+  scheduleBubbles();wanderWater();document.body.classList.toggle("sonar",sndMode==="sonar");
   if(!actx)return;
   if(sndOn&&actx.state==="suspended")actx.resume().then(()=>applySound()).catch(()=>{});
   const t=actx.currentTime;
@@ -1007,14 +1022,14 @@ function bubble(){                                                            //
   const n=Math.random()<.35?2+Math.floor(Math.random()*2):1;let t=actx.currentTime;
   for(let i=0;i<n;i++){const f=300+Math.random()*500,d=.05+Math.random()*.06;
     const o=actx.createOscillator(),g=actx.createGain();o.frequency.setValueAtTime(f,t);o.frequency.exponentialRampToValueAtTime(f*2.3,t+d);
-    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.32,t+.008);g.gain.exponentialRampToValueAtTime(.001,t+d);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.05,t+.008);g.gain.exponentialRampToValueAtTime(.0005,t+d);
     o.connect(g).connect(bus.water);o.start(t);o.stop(t+d+.02);t+=.05+Math.random()*.09}}
-function sonarPing(){                                                         // one ping each time the radar completes a turn (fresh data landed)
+function sonarPing(){                                                         // one soft ping each time the radar completes a turn (fresh data landed)
   if(sndMode!=="sonar"||!actx||actx.state!=="running"||!pingIn)return;
-  const now=actx.currentTime,f=1150,o=actx.createOscillator(),g=actx.createGain();
-  o.frequency.setValueAtTime(f,now);o.frequency.exponentialRampToValueAtTime(f*.95,now+1.8);
-  g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.7,now+.006);g.gain.exponentialRampToValueAtTime(.0008,now+2.2);
-  o.connect(g).connect(pingIn);o.start(now);o.stop(now+2.25)}
+  const now=actx.currentTime,f=1040,o=actx.createOscillator(),g=actx.createGain();
+  o.frequency.setValueAtTime(f,now);o.frequency.exponentialRampToValueAtTime(f*.96,now+2);
+  g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.022,now+.025);g.gain.exponentialRampToValueAtTime(.0002,now+2.4);
+  o.connect(g).connect(pingIn);o.start(now);o.stop(now+2.45)}
 function setSndMode(m){if(!SND_MODES.includes(m))return;sndMode=m;if(m!=="off")sndLast=m;
   try{localStorage.setItem(SND_KEY,m);localStorage.setItem(SND_KEY+"Last",sndLast)}catch(_){}
   if(m!=="off")startAudio();applySound(true)}
@@ -1037,12 +1052,13 @@ applySound();
 /* radar: centred on the downtown terminals, one full turn per 30 s data refresh.
    The beam reaches the top as the next fetch goes out, waits there while it's in flight, and pings when it lands. */
 const RADAR_C=(()=>{let x=0,y=0,n=0;for(const id of Object.keys(TERMINALS)){const r=STN.get(id);if(r)for(const q of r.inst){x+=q.xy[0];y+=q.xy[1];n++}}return n?[x/n,y/n]:null})();
-const RADAR_R=340;let radarSweep=null,radarRot="";
+let RADAR_R=340,radarSweep=null,radarRot="";
+if(RADAR_C){let m=0;for(const r of STN.values())for(const q of r.inst)m=Math.max(m,Math.hypot(q.xy[0]-RADAR_C[0],q.xy[1]-RADAR_C[1]));RADAR_R=Math.ceil(m*2.6)}   // reaches past every edge of the page
 if(RADAR_C){const g=el("g",{class:"radar",transform:`translate(${RADAR_C[0].toFixed(1)},${RADAR_C[1].toFixed(1)})`});world.insertBefore(g,trackG);
-  for(const f of[1,.66,.33])el("circle",{r:(RADAR_R*f).toFixed(1)},g);
+  for(let i=1;i<=8;i++)el("circle",{r:(RADAR_R*i/8).toFixed(1)},g);
   el("path",{class:"rx",d:`M${-RADAR_R} 0H${RADAR_R}M0 ${-RADAR_R}V${RADAR_R}`},g);
   radarSweep=el("g",{class:"sweep"},g);
-  const N=20,SPAN=50;                                                         // a fading 50° trail behind the beam
+  const N=24,SPAN=40;                                                         // a fading 50° trail behind the beam
   for(let i=0;i<N;i++){const a0=(-SPAN+SPAN*i/N-90)*Math.PI/180,a1=(-SPAN+SPAN*(i+1)/N-90+.4)*Math.PI/180;
     el("path",{class:"wedge",d:`M0 0L${(RADAR_R*Math.cos(a0)).toFixed(1)} ${(RADAR_R*Math.sin(a0)).toFixed(1)}A${RADAR_R} ${RADAR_R} 0 0 1 ${(RADAR_R*Math.cos(a1)).toFixed(1)} ${(RADAR_R*Math.sin(a1)).toFixed(1)}Z`,"fill-opacity":(.32*Math.pow((i+1)/N,2)).toFixed(3)},radarSweep)}
   el("path",{class:"beam",d:`M0 0V${-RADAR_R}`},radarSweep)}

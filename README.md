@@ -16,6 +16,19 @@ It's made to sit on a second monitor, like a fish tank, but it works on a phone 
 - Shows Metra's service alerts.
 - Has light and dark mode.
 
+## Sounds
+
+Click the speaker button next to the title to pick one:
+
+| Sound | What it is |
+|---|---|
+| **Brown noise** | A soft, steady hush. |
+| **Water** | Gentle moving water with the odd bubble. |
+| **Sonar** | A deep underwater rumble. A radar sweeps over the map once every 30 seconds, and a soft ping plays each time fresh train data comes in. |
+| **Off** | No sound. |
+
+The page remembers your pick. Press **M** to mute or unmute. Sound starts after your first click, because browsers don't allow it before that.
+
 ## Is the data real?
 
 Yes. Everything comes straight from Metra's live feeds. Nothing is guessed or made up.
