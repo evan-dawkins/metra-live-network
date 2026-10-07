@@ -255,10 +255,8 @@ body.focused .focusnote{display:block}
 /* sonar: a radar over the Loop, one turn per data refresh */
 .radar{opacity:0;transition:opacity .6s ease;pointer-events:none}
 body.sonar .radar{opacity:1}
-.radar circle,.radar .rx{fill:none;stroke:var(--live);stroke-width:1.3px;vector-effect:non-scaling-stroke;opacity:.45}
-.radar .rx{opacity:.25}
-.radar .wedge{fill:var(--live)}
-.radar .beam{stroke:var(--live);stroke-width:2.4px;vector-effect:non-scaling-stroke;opacity:1}
+.radar .wedge{fill:var(--ink)}
+.radar .beam{stroke:var(--ink);stroke-width:1.6px;vector-effect:non-scaling-stroke;opacity:.4}
 @media (prefers-reduced-motion:reduce){.radar .sweep{display:none}}
 
 /* ---------- ambient: controls recede after ~10 s without input ---------- */
@@ -1051,16 +1049,16 @@ addEventListener("pointerdown",firstGesture,true);addEventListener("keydown",fir
 applySound();
 /* radar: centred on the downtown terminals, one full turn per 30 s data refresh.
    The beam reaches the top as the next fetch goes out, waits there while it's in flight, and pings when it lands. */
-const RADAR_C=(()=>{let x=0,y=0,n=0;for(const id of Object.keys(TERMINALS)){const r=STN.get(id);if(r)for(const q of r.inst){x+=q.xy[0];y+=q.xy[1];n++}}return n?[x/n,y/n]:null})();
+const RADAR_C=(()=>{const at=id=>{const r=STN.get(id);if(!r||!r.inst.length)return null;let x=0,y=0;for(const q of r.inst){x+=q.xy[0];y+=q.xy[1]}return[x/r.inst.length,y/r.inst.length]};
+  const u=at("Union Station"),m=at("Millennium"),l=at("LaSalle St");if(!u||!m||!l)return null;
+  return[(u[0]+m[0])/2,l[1]-.25*(l[1]-u[1])]})();   // the open area between Union and Millennium, just north of LaSalle St
 let RADAR_R=340,radarSweep=null,radarRot="";
 if(RADAR_C){let m=0;for(const r of STN.values())for(const q of r.inst)m=Math.max(m,Math.hypot(q.xy[0]-RADAR_C[0],q.xy[1]-RADAR_C[1]));RADAR_R=Math.ceil(m*2.6)}   // reaches past every edge of the page
 if(RADAR_C){const g=el("g",{class:"radar",transform:`translate(${RADAR_C[0].toFixed(1)},${RADAR_C[1].toFixed(1)})`});world.insertBefore(g,trackG);
-  for(let i=1;i<=8;i++)el("circle",{r:(RADAR_R*i/8).toFixed(1)},g);
-  el("path",{class:"rx",d:`M${-RADAR_R} 0H${RADAR_R}M0 ${-RADAR_R}V${RADAR_R}`},g);
   radarSweep=el("g",{class:"sweep"},g);
   const N=24,SPAN=40;                                                         // a fading 50° trail behind the beam
   for(let i=0;i<N;i++){const a0=(-SPAN+SPAN*i/N-90)*Math.PI/180,a1=(-SPAN+SPAN*(i+1)/N-90+.4)*Math.PI/180;
-    el("path",{class:"wedge",d:`M0 0L${(RADAR_R*Math.cos(a0)).toFixed(1)} ${(RADAR_R*Math.sin(a0)).toFixed(1)}A${RADAR_R} ${RADAR_R} 0 0 1 ${(RADAR_R*Math.cos(a1)).toFixed(1)} ${(RADAR_R*Math.sin(a1)).toFixed(1)}Z`,"fill-opacity":(.32*Math.pow((i+1)/N,2)).toFixed(3)},radarSweep)}
+    el("path",{class:"wedge",d:`M0 0L${(RADAR_R*Math.cos(a0)).toFixed(1)} ${(RADAR_R*Math.sin(a0)).toFixed(1)}A${RADAR_R} ${RADAR_R} 0 0 1 ${(RADAR_R*Math.cos(a1)).toFixed(1)} ${(RADAR_R*Math.sin(a1)).toFixed(1)}Z`,"fill-opacity":(.09*Math.pow((i+1)/N,2)).toFixed(3)},radarSweep)}
   el("path",{class:"beam",d:`M0 0V${-RADAR_R}`},radarSweep)}
 function radarFrame(){
   if(!radarSweep||sndMode!=="sonar")return;
