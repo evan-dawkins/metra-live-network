@@ -106,12 +106,12 @@ Leave the page alone for 2 minutes and it turns into a screensaver:
 
 1. The camera swoops in behind a live train, turning and tilting the map so you're riding along.
 2. The train's card pops up with where it's headed and its next stop.
-3. A soft voice **checks in** on the train, and the words show as a caption.
+3. A soft voice **checks in** on the train.
 4. After about a minute it pulls back to the whole map, rests, then picks another train.
 
 Move the mouse, tap or press a key and the normal map comes right back. On phones the map turns but doesn't tilt. If your device is set to reduce motion, the screensaver stays off.
 
-<img src="docs/2026-10-08-train-of-the-moment.png" alt="Riding along behind a train, with its check-in caption" width="640">
+<img src="docs/2026-10-08-train-of-the-moment.png" alt="Riding along behind a train" width="640">
 
 ### Train check-ins
 
@@ -127,7 +127,7 @@ Like a weather stream checking in on a live camera, the voice checks in three ti
 - The background sound dips while it talks.
 - Turn it on or off in the **speaker** menu → **Train check-ins**. The page remembers your choice.
 - It only checks in during train of the moment, never on a train you picked yourself.
-- Like all sound, the voice starts after your first click. Until then you see the caption only. With check-ins off, there's neither.
+- Like all sound, the voice starts after your first click.
 
 The voice is free: every phrase was recorded once ahead of time with [Kokoro](https://github.com/thewh1teagle/kokoro-onnx), an open-source voice, and the page stitches the pieces together.
 

@@ -267,22 +267,7 @@ body.focused .focusnote{display:block}
 #sndmenu .ck{width:14px;flex:none;color:var(--ink);font-weight:700}
 #sndmenu button[aria-checked="true"] .ck::before{content:"\2713"}
 #sndmenu .sep{height:1px;background:var(--edge);margin:5px 6px}
-/* ---------- train check-ins: spoken + captioned, during train of the moment only ---------- */
-#checkin{position:absolute;left:50%;bottom:calc(78px + env(safe-area-inset-bottom,0px));width:min(600px,calc(100vw - 32px));margin-left:calc(min(600px,calc(100vw - 32px)) / -2);
-  padding:10px 15px 12px;background:var(--panel);border:1px solid var(--edge);border-radius:12px;box-shadow:var(--shadow);z-index:4;pointer-events:none;
-  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
-#checkin.pnl{translate:0 8px} #checkin.pnl.on{translate:0 0}
-#checkin .h{display:flex;align-items:center;gap:8px;min-width:0}
-#checkin .h .kick2{color:var(--live)}
-#checkin .h .w{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-#checkin .vu{display:inline-flex;gap:2px;align-items:flex-end;height:11px;margin-left:auto;flex:none;opacity:0;transition:opacity .4s}
-#checkin.talk .vu{opacity:1}
-#checkin .vu i{width:2px;height:100%;border-radius:1px;background:var(--live);transform-origin:50% 100%;animation:vu .9s ease-in-out infinite}
-#checkin .vu i:nth-child(2){animation-delay:-.3s} #checkin .vu i:nth-child(3){animation-delay:-.6s}
-@keyframes vu{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
-#checkin p{margin:6px 0 0;font-size:15.5px;line-height:1.45;color:var(--ink)}
-#checkin p span{opacity:0;transition:opacity .5s ease} #checkin p span.in{opacity:1}
-@media (prefers-reduced-motion:reduce){#checkin .vu i{animation:none}}
+
 /* sonar: a radar over the Loop, one turn per data refresh */
 .radar{opacity:0;transition:opacity .6s ease;pointer-events:none}
 body.sonar .radar{opacity:1}
@@ -565,11 +550,6 @@ button{touch-action:manipulation}
   #fstrip .n{font-size:12px;color:var(--muted);flex:none}
   body.hasfav .zoom{bottom:calc(102px + env(safe-area-inset-bottom,0px))}
 }
-@media (max-width:760px),(max-height:500px){
-  #checkin{left:8px;right:8px;width:auto;margin-left:0;bottom:auto;top:calc(70px + env(safe-area-inset-top,0px));padding:8px 12px 10px}
-  #checkin p{font-size:14.5px}}
-@media (max-height:500px) and (orientation:landscape){
-  #checkin{left:auto;right:calc(8px + env(safe-area-inset-right,0px));width:min(440px,calc(54vw - 28px));top:calc(50px + env(safe-area-inset-top,0px))}}
 @media (max-width:480px){ #updated{display:none}
   .ops>span:has(#count){display:none} .state.live #stateText{display:none}
   .mark{gap:8px} .mark .tools{gap:5px} .ops{gap:9px} }
@@ -638,7 +618,6 @@ button{touch-action:manipulation}
 </div>
 
 <div id="card" class="pnl" role="dialog" aria-label="Train details"></div>
-<div id="checkin" class="pnl" role="status" aria-live="polite"></div>
 <div id="spop" class="pnl" role="dialog" aria-label="Station"></div>
 <section id="board" aria-label="Your stations"></section>
 <section id="rcard" class="pnl" aria-label="Today's report card"></section>
@@ -2343,9 +2322,9 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden&&chase)fini
    During train of the moment (never a train you picked yourself), a soft voice checks in on the train,
    like a weather stream's camera check-ins: which train, how it's running, what's next. Every phrase was
    recorded ahead of time (tools/build_voice.py, a free open-source voice) and is stitched together here,
-   so nothing is generated live. The same words show as a caption. Toggle: sound menu → Train check-ins.
+   so nothing is generated live. Voice only, no caption. Toggle: sound menu → Train check-ins.
    ===================================================================== */
-const ciBox=$("checkin"),ciTog=$("ciTog");
+const ciTog=$("ciTog");
 const VO={man:null,manP:null,bufs:{},loading:{},srcs:[],timers:[],hideT:0,gen:0};
 function setCheckins(on){ciOn=on;try{localStorage.setItem(CI_KEY,on?"1":"0")}catch(_){}
   ciTog.setAttribute("aria-checked",String(on));if(on){startAudio();applySound();ciPreload()}else ciStop()}
@@ -2403,11 +2382,10 @@ function ciLines(kind,f){
     L.push({p:[["core","end_"+v]],tx:["That's the check-in. Back out to the full map.","That's all for this one. Back to the whole network.","Okay, that wraps it up. Back out to the map."][v]})}
   return L}
 function ciStop(){VO.gen++;for(const x of VO.srcs)try{x.stop()}catch(_){}VO.srcs=[];for(const x of VO.timers)clearTimeout(x);VO.timers=[];
-  clearTimeout(VO.hideT);ciBox.classList.remove("on","talk");
   if(duckG&&actx){const t=actx.currentTime;duckG.gain.cancelScheduledValues(t);duckG.gain.setTargetAtTime(1,t,.4)}}
 async function ciSay(kind,t){
   if(!ciOn||!t)return;
-  const gen=++VO.gen;for(const x of VO.srcs)try{x.stop()}catch(_){}VO.srcs=[];for(const x of VO.timers)clearTimeout(x);VO.timers=[];clearTimeout(VO.hideT);
+  const gen=++VO.gen;for(const x of VO.srcs)try{x.stop()}catch(_){}VO.srcs=[];for(const x of VO.timers)clearTimeout(x);VO.timers=[];
   await voManifest();if(gen!==VO.gen)return;
   const f=ciFacts(t),lines=ciLines(kind,f);if(!lines.length)return;
   // can we speak it? every piece must be recorded and loaded, and audio must be allowed (after a first click)
@@ -2415,26 +2393,13 @@ async function ciSay(kind,t){
   if(voice){const packs=[...new Set(lines.flatMap(l=>l.p.map(q=>q[0])))];
     const bufs=await Promise.race([Promise.all(packs.map(voPack)),new Promise(r=>setTimeout(()=>r(null),2500))]);if(gen!==VO.gen)return;
     voice=!!bufs&&bufs.every(Boolean)&&lines.every(l=>l.p.every(([pk,k])=>VO.man[pk==="core"?"core":"lines"]&&(pk==="core"?VO.man.core[k]:VO.man.lines[pk]&&VO.man.lines[pk][k])))}
-  // caption
-  if(kind!=="end"||!ciBox.classList.contains("on")){
-    const where=f.last&&STN.get(f.last.id)?nmSafe(f.last.id):"";
-    ciBox.innerHTML=`<div class="h"><span class="kick2">Train check-in</span>${bullet(t.L.key)}<span class="w">${esc([trainLabel(t),where].filter(Boolean).join(" · "))}</span>`
-      +`<span class="vu" aria-hidden="true"><i></i><i></i><i></i></span></div><p></p>`}
-  const para=ciBox.querySelector("p");if(kind==="start"||kind==="end")para.textContent="";
-  const spans=lines.map(l=>{const sp=document.createElement("span");sp.textContent=(para.textContent||para.children.length?" ":"")+l.tx;para.appendChild(sp);return sp});
-  ciBox.classList.add("on");labelsDirty=true;
-  const reveal=(sp,ms)=>VO.timers.push(setTimeout(()=>sp.classList.add("in"),ms));
-  let total;
-  if(voice){const a0=actx.currentTime+.12;let at=a0;
-    ciBox.classList.add("talk");duckG.gain.cancelScheduledValues(a0);duckG.gain.setTargetAtTime(.4,actx.currentTime,.25);
-    lines.forEach((l,i)=>{reveal(spans[i],(at-actx.currentTime)*1000);
-      for(const[pk,k]of l.p){const ix=pk==="core"?VO.man.core[k]:VO.man.lines[pk][k],src=actx.createBufferSource();
-        src.buffer=VO.bufs[pk];src.connect(voG);src.start(at,ix[0],ix[1]);VO.srcs.push(src);at+=ix[1]-.03}
-      at+=.32});
-    total=(at-actx.currentTime)*1000;duckG.gain.setTargetAtTime(1,a0+total/1000,.6);
-    VO.timers.push(setTimeout(()=>ciBox.classList.remove("talk"),total))}
-  else{let ms=150;lines.forEach((l,i)=>{reveal(spans[i],ms);ms+=900+l.tx.length*55});total=ms}
-  VO.hideT=setTimeout(()=>{ciBox.classList.remove("on","talk");labelsDirty=true},total+(kind==="end"?1500:4500))}
+  if(!voice)return;                                                        // no voice yet (before the first click): stay quiet
+  const a0=actx.currentTime+.12;let at=a0;
+  duckG.gain.cancelScheduledValues(a0);duckG.gain.setTargetAtTime(.4,actx.currentTime,.25);
+  for(const l of lines){for(const[pk,k]of l.p){const ix=pk==="core"?VO.man.core[k]:VO.man.lines[pk][k],src=actx.createBufferSource();
+      src.buffer=VO.bufs[pk];src.connect(voG);src.start(at,ix[0],ix[1]);VO.srcs.push(src);at+=ix[1]-.03}
+    at+=.32}
+  duckG.gain.setTargetAtTime(1,at,.6)}
 const nmSafe=id=>{const r=STN.get(id);return r?stnName(r):""};
 document.addEventListener("visibilitychange",()=>{if(document.hidden)ciStop()});
 
