@@ -404,6 +404,8 @@ const JSON_HEADERS = { "content-type": "application/json", "access-control-allow
 // (Metra only updates every 30 s), and if Metra refuses (403/401) we wait 2 minutes before asking again.
 // A blip (5xx/429/network) gets one retry after 1.5 s.
 const FEED_TTL_MS = 25e3, REFUSED_WAIT_MS = 120e3;
+// say who's asking, like a browser does (some security filters turn away requests with no name)
+const ID_HEADERS = { "User-Agent": "metra-live-network/1.0 (+https://github.com/evan-dawkins/metra-live-network)", "Accept": "application/x-protobuf, */*" };
 const feedMemo = new Map();                                 // name -> { at, buf } or { at, err, until }
 async function getFeed(name, headers) {
   const now = Date.now(), m = feedMemo.get(name);
@@ -413,7 +415,7 @@ async function getFeed(name, headers) {
   try { const hit = await caches.default.match(key); if (hit) { const buf = await hit.arrayBuffer(); feedMemo.set(name, { at: now, buf }); return buf; } } catch (e) {}
   for (let attempt = 1; ; attempt++) {
     let r = null, err = null;
-    try { r = await fetch(BASE + name, { headers }); } catch (e) { err = e; }
+    try { r = await fetch(BASE + name, { headers: { ...headers, ...ID_HEADERS } }); } catch (e) { err = e; }
     if (r && r.ok) {
       const buf = await r.arrayBuffer();
       feedMemo.set(name, { at: Date.now(), buf });
