@@ -33,7 +33,11 @@ See where it's headed, the station it just passed, and when it reaches the next 
 
 ### Tap a station
 
-See the next trains in each direction, with minutes until they arrive. Tap ☆ to save the station to your board on the right.
+See the next trains in each direction, **To Chicago** and **Away from Chicago**, with minutes until they arrive. Both directions always show, even when one has nothing coming yet.
+
+At the downtown stations (Ogilvie, Union Station, LaSalle St and Millennium), you only see trains **leaving**, since that's what you'd catch there.
+
+Tap ☆ to save a station to your board on the right. The board shows the same thing for each saved station.
 
 <img src="docs/2026-10-07-station-times.png" alt="Upcoming trains at Wheaton" width="640">
 
@@ -44,6 +48,8 @@ Everything works on a phone too. Your saved stations sit in a strip at the botto
 <img src="docs/2026-10-07-phone.png" alt="The map on a phone" width="260">
 - Has light and dark mode.
 - Can show cute little trains instead of arrows. Click the train button next to the title, or press **C**. Their wheels turn while they're moving.
+
+<img src="docs/2026-10-07-cute-trains.png" alt="A cute UP-NW train rolling past Cumberland" width="420">
 
 ## Sounds
 
