@@ -15,7 +15,7 @@ It's made to sit on a second monitor, like a fish tank, but it works on a phone 
 - Click a train or a station to see what's coming and when.
 - Shows Metra's service alerts.
 - Keeps a report card of how many trains finished on time today.
-- Turns into a screensaver: leave it alone for 2 minutes and the camera rides along behind a live train. Move the mouse to get the normal map back.
+- Turns into a screensaver called train of the moment (more below).
 - Has light and dark mode.
 
 ## Sounds
@@ -36,6 +36,16 @@ The page remembers your pick. Press **M** to mute or unmute. Sound starts after 
 The bar-chart button next to the title opens today's report card: the share of trains that finished on time, line by line, and the latest train of the day.
 
 A train counts as on time if it reaches its last stop within 6 minutes of the timetable. That's Metra's own rule. The card keeps counting all day, even when the page is closed, and starts fresh at 3 AM.
+
+## Train of the moment
+
+Leave the page alone for 2 minutes and it turns into a screensaver:
+
+1. The camera zooms in behind a live train. The map turns so the train points up and tilts back in 3D, as if you're riding along.
+2. A card pops up with the train's details: its line, number, where it's headed, and its next stop with Metra's times.
+3. After about a minute it pulls back to the whole map, rests for a bit, then picks another train.
+
+Move the mouse, tap or press a key and the normal map comes right back. On phones the map turns but doesn't tilt. If your device is set to reduce motion, the screensaver stays off.
 
 ## Is the data real?
 
