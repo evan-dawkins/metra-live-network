@@ -278,7 +278,7 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 .kick2{font-size:11px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
 
 /* ---------- floating train overlay ---------- */
-#card{position:absolute;left:0;top:0;width:276px;background:var(--panel);border:1px solid var(--edge);border-radius:12px;padding:0;
+#card{position:absolute;left:0;top:0;width:304px;background:var(--panel);border:1px solid var(--edge);border-radius:12px;padding:0;
   display:block;font-size:14px;will-change:transform;box-shadow:var(--shadow);overflow:hidden;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transform-origin:0 50%}
 #card .hd{display:flex;align-items:flex-start;gap:9px;padding:10px 6px 0 12px}
 #card .hd .bullet{margin-top:1px}
@@ -290,7 +290,7 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 #card .dest b{display:block;font-size:20px;line-height:1.15;font-weight:700;margin-top:2px}
 #card .rows{border-top:1px solid var(--edge);padding:8px 12px 9px;display:grid;gap:5px}
 #card .row{display:grid;grid-template-columns:50px 1fr auto;gap:8px;align-items:baseline}
-#card .row .v{font-weight:600;min-width:0;overflow-wrap:normal;word-break:normal;hyphens:none}
+#card .row .v{font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #card .row .t{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;white-space:nowrap}
 #card .row .t b{color:var(--ink);font-weight:700;font-size:14px}
 #card .ft{display:flex;align-items:center;gap:8px;padding:6px 7px 6px 12px;border-top:1px solid var(--edge);font-size:12.5px;color:var(--muted)}
