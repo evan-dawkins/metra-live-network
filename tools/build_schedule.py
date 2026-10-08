@@ -31,6 +31,7 @@ def main():
     print(f"{len(data)} bytes, starts with {data[:4]!r}")
     z = zipfile.ZipFile(io.BytesIO(data))
     print("files:", ", ".join(z.namelist()))
+    names = set(z.namelist())
 
     last = {}                                    # trip_id -> (stop_sequence, stop_id, arrival_time)
     for r in rows(z, "stop_times.txt"):
@@ -48,7 +49,6 @@ def main():
     import datetime
     today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-6))).date()
     days = [today + datetime.timedelta(d) for d in range(-1, 8)]
-    names = set(z.namelist())
     active = set()
     if "calendar.txt" in names:
         wk = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -76,8 +76,21 @@ def main():
             version = (r.get("feed_version") or r.get("feed_start_date") or "").strip()
             break
 
+    # where each last stop is, so the Worker can tell from GPS when a train has pulled in
+    ends = {stop for (_, stop, _) in last.values()}
+    stops = {}
+    if "stops.txt" in names:
+        for r in rows(z, "stops.txt"):
+            sid = r.get("stop_id", "")
+            if sid in ends:
+                try:
+                    stops[sid] = [round(float(r["stop_lat"]), 5), round(float(r["stop_lon"]), 5)]
+                except (KeyError, ValueError):
+                    pass
+    print(f"Last-stop locations: {len(stops)} of {len(ends)}")
+
     out = {"source": SOURCE, "version": version,
-           "trips": {tid: [stop, t] for tid, (_, stop, t) in sorted(last.items())}}
+           "trips": {tid: [stop, t] for tid, (_, stop, t) in sorted(last.items())}, "stops": stops}
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(out, f, separators=(",", ":"))
     print(f"{OUT}: {len(out['trips'])} trips, version {version or 'unknown'}")

@@ -1477,7 +1477,8 @@ async function poll(){
     sonarPing();
     fails=0;lastOkAt=Date.now();lastError="";
   }catch(e){fails++;lastError=e&&e.name==="AbortError"?"The feed took too long to answer":(e&&e.message)||"Network error"}
-  finally{clearTimeout(to);inflight=false;radarLanded(pollT0);nextPollAt=Date.now()+POLL;pollTimer=setTimeout(poll,POLL);refreshStatus()}
+  finally{clearTimeout(to);inflight=false;radarLanded(pollT0);const wait=fails?Math.min(POLL,10000*fails):POLL;   // after a miss, try again sooner
+    nextPollAt=Date.now()+wait;pollTimer=setTimeout(poll,wait);refreshStatus()}
 }
 /* ---- simulated mode: only on request, always labelled, never mixed with live data ----
    Fake trains are fed through the same pipeline as real reports (so they move the same way),
@@ -1876,8 +1877,14 @@ function renderReport(){
     const W=R.worst,wk=W&&routeKey(W.r);
     if(W&&wk)html+=`<div class="worst">Latest today: ${bullet(wk)}${W.n?` train ${esc(W.n)}`:""}, <b>${Math.max(6,Math.round(W.d/60))} min</b> late</div>`;
   }
-  const up=R.updated?new Date(R.updated).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"";
-  html+=`<div class="bf">On time means within 6 minutes of the timetable at the last stop, Metra's own rule. Starts fresh at 3 AM.${up?` Updated ${up}.`:""}</div>`;
+  const fmt=ms=>new Date(ms).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+  const down=R.down_min|0,gps=R.gps|0;
+  if(down>=3)html+=`<div class="worst">Metra's feed was down for about ${down>=90?Math.round(down/60)+" hr":down+" min"} today${gps?`, so ${gps} train${gps===1?" was":"s were"} timed by GPS instead`:""}.</div>`;
+  else if(gps)html+=`<div class="worst">${gps} train${gps===1?" was":"s were"} timed by GPS when Metra's times were missing.</div>`;
+  const ck=R.checked||R.updated||0;
+  const status=!ck?"Getting started. The first numbers show up within a few minutes."
+    :Date.now()-ck>6*60e3?`Hasn't updated since ${fmt(ck)}. It'll catch up when it's back.`:`Updated ${fmt(ck)}.`;
+  html+=`<div class="bf">${status} On time means within 6 minutes of the timetable at the last stop. Starts fresh at 3 AM.</div>`;
   if(html===reportSig)return;reportSig=html;rcard.innerHTML=html;labelsDirty=true}
 function renderBoard(){
   const favs=FAV.ids.map(id=>STN.get(id)).filter(Boolean),narrow=isNarrow();
@@ -2054,7 +2061,7 @@ function frame(now){
   labelT-=dt;if(labelT<=0&&labelsDirty&&!camAnim){labelT=chasing?.4:.12;labelsDirty=false;renderLabels()}   // during a camera glide labels just ride along; re-placed when it lands
   placeCard();placeStationPop();
   cardT-=dt;if(cardT<=0){cardT=1;if(selected)renderCard();if(spopRec)renderStationPop();renderBoard()}
-  statusT-=dt;if(statusT<=0){statusT=1;refreshStatus();tickHeader();tickIdle();tickStrip()}
+  statusT-=dt;if(statusT<=0){statusT=1;refreshStatus();tickHeader();tickIdle();tickStrip();renderReport()}
   requestAnimationFrame(frame);
 }
 if(GEO_ISSUES.length)console.warn("Schematic ordering issues:",GEO_ISSUES);
