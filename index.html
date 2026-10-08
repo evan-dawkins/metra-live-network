@@ -1863,7 +1863,7 @@ function gpsRow(a){return`<div class="arr">${bullet(a.key)}<span class="to">${a.
 const HUB_STOP={"Ogilvie":"OTC","Union Station":"CUS","LaSalle St":"LSS","Millennium":"MILLENNIUM"};
 let TT=null,TT_BY={};
 async function loadTimetable(){try{const r=await fetch("schedule.json",{cache:"no-cache"});if(!r.ok)return;const d=await r.json();
-  if(!d||!Array.isArray(d.deps))return;TT=d;TT_BY={};for(const x of d.deps)(TT_BY[x[0]]||=[]).push(x);boardSig="";spopSig=""}catch(_){}}
+  if(!d||!Array.isArray(d.deps))return;TT=d;TT_BY={};for(const x of d.deps)(TT_BY[x[0]]||=[]).push(x);boardSig="";spopSig="";if(typeof sitAt!=="undefined")sitAt=0}catch(_){}}
 loadTimetable();setInterval(loadTimetable,6*3600e3);
 const chiFmt=new Intl.DateTimeFormat("en-US",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"});
 function chiParts(ms){const p={};for(const x of chiFmt.formatToParts(new Date(ms)))p[x.type]=x.value;return p}
@@ -2092,27 +2092,97 @@ const MOOD_WEEKEND=[
 const MOOD_NIGHT=["Most trains are parked until early morning.", "The system's quiet until the first trains roll out.", "No trains running right now.", "The trains are done for the night.", "Everything's parked until the morning.", "Quiet tracks until the first trains.", "Nothing moving. Back in a few hours.", "The tracks are empty overnight.", "Overnight, and the trains are resting.", "Next trains in the early morning."];
 const moodEl=$("mood"),moodPick={},dayFmt=new Intl.DateTimeFormat("en-US",{timeZone:"America/Chicago",weekday:"short"});
 let moodText="";
+// What the trains are actually doing: read from the live map, compared with Metra's timetable.
+// Unusual days win over the time of day; with no live data it falls back to the clock lines above.
+const SIT={
+  waking:["Service is just waking up.","The first trains of the day are heading out.","A few early trains on the move.","Quiet platforms and the first runs of the day."],
+  amBuild:["The morning rush is building.","Inbound trains are starting to pick up.","Commuters are starting to head in.","More trains joining the map every few minutes."],
+  amPeak:["Morning rush. Most trains are headed downtown.","The busiest part of the morning.","Inbound trains on every line.","Everyone's headed toward the Loop."],
+  amEase:["The morning rush is tapering off.","The last big wave of commuters is heading in.","The map is thinning out after the rush.","Trains are spacing out after the rush."],
+  offpeak:["A quiet stretch. Trains are running less often.","Between rushes, so there are fewer trains.","Off-peak trains, plenty of open seats.","A slower rhythm on most lines."],
+  pmBuild:["People are starting to head home.","More trains leaving downtown now.","Outbound service is ramping up.","The workday is starting to empty out."],
+  pmPeak:["Evening rush. Most trains are headed out of the city.","The busiest part of the evening.","Outbound trains on every line.","Everyone's headed out to the suburbs."],
+  pmEase:["The evening rush is winding down.","The last of the rush-hour trains are heading home.","Fewer trains now as the rush fades.","The map is thinning out for the evening."],
+  evening:["A quiet evening on the rails.","Fewer trains, easier rides home.","Longer gaps between trains tonight.","Service is settling in for the night."],
+  lastTrains:["The last trains of the night are leaving soon.","Only a few departures left tonight.","Last call for the trains.","The day's final runs are getting ready to go."],
+  nothing:["No trains running right now.","Everything's parked until the morning.","Quiet tracks until the first trains.","The trains are resting for the night."],
+  busier:["Busier than usual. Extra trains are out.","More trains than normal for this hour.","Something's going on. Extra service is running.","A busy map for this time of day."],
+  lighter:["A lighter day than usual on the rails.","Fewer trains than a normal weekday.","Holiday-style service today.","An unusually quiet map for this hour."],
+  late:["Trains are running a bit behind right now.","Expect some delays across the system.","A slow stretch. Many trains are running late.","Delays on several lines. Check your departure times."],
+  line:["Delays on the {L} right now.","The {L} is running behind. Other lines look normal.","Heads up: the {L} has delays.","Most lines are on time, but the {L} is slow."],
+  downtown:["A busy moment downtown.","Lots of trains around the Loop right now.","The downtown stations are packed with trains.","Trains stacking up downtown."],
+  weekend:["Weekend schedule. Trains run less often today.","Weekend pace on the rails.","Fewer trains today, so check the times.","Weekend trains, roomier rides."]};
+const HUB_C=(()=>{const xs=["Ogilvie","Union Station","LaSalle St","Millennium"].map(id=>{const r=STN.get(id);return r&&r.inst[0].xy}).filter(Boolean);
+  if(!xs.length)return null;const c=[xs.reduce((a,q)=>a+q[0],0)/xs.length,xs.reduce((a,q)=>a+q[1],0)/xs.length];
+  return{c,r:1.6*Math.max(...xs.map(q=>Math.hypot(q[0]-c[0],q[1]-c[1])))}})();
+let moodSit={key:"",why:""},sitCache=null,sitAt=0;
+function liveSituation(now){
+  if(mode==="sim"||!feedHealthy()||!TT||!TT.expect)return null;
+  const p=chiParts(now),day=p.year+p.month+p.day,bk=Math.floor((+p.hour*60+ +p.minute)/10),hr=+p.hour;
+  const cur=TT.expect[day],curIn=TT.expect_in&&TT.expect_in[day];if(!cur)return null;
+  const at=(arr,k)=>arr[Math.max(0,Math.min(143,k))]||0;
+  const wdays=Object.keys(TT.expect).filter(d=>{const w=new Date(Date.UTC(+d.slice(0,4),+d.slice(4,6)-1,+d.slice(6,8))).getUTCDay();return w>0&&w<6});
+  const typPeak=Math.max(1,...wdays.map(d=>Math.max(...TT.expect[d])),Math.max(...cur));
+  const typNow=wdays.length?wdays.map(d=>at(TT.expect[d],bk)).sort((a,b)=>a-b)[Math.floor(wdays.length/2)]:at(cur,bk);
+  const E=at(cur,bk),share=E?at(curIn||[],bk)/E:.5,level=E/typPeak,trend=(at(cur,bk+3)-at(cur,bk-3))/typPeak;
+  const wd=dayFmt.format(new Date(now)),weekend=wd==="Sat"||wd==="Sun";
+  const live=trains.filter(t=>!t.stale),N=live.length;
+  // 1. nothing running
+  if(N===0)return E<=3?{key:"nothing"}:null;                                   // no trains but some expected: don't trust it, use the clock
+  // 2. lateness at each train's last stop: Metra's live prediction vs the timetable
+  const late=[],byLine={};const nowSec=now/1000;
+  for(const tr of trips||[]){const sc=TT.trips&&TT.trips[tr.trip_id];if(!sc||tr.canceled)continue;const st=(tr.stops||[]).find(x=>x.id===sc[0]);const pr=st&&(st.arr||st.dep);if(!pr)continue;
+    let sched=gtfsBase(day)+hms(sc[1]);if(sched-pr>12*3600)sched-=86400;else if(pr-sched>12*3600)sched+=86400;
+    const d=pr-sched;if(Math.abs(d)>3*3600)continue;late.push(d);const k=ROUTE_KEY[tr.route_id];if(k)(byLine[k]||=[]).push(d)}
+  const med=a=>{const b=[...a].sort((x,y)=>x-y);return b.length?b[Math.floor(b.length/2)]:0};
+  if(late.length>=6&&med(late)>=300)return{key:"late"};
+  if(late.length>=6&&med(late)<300){let worst=null;for(const k in byLine){const m=med(byLine[k]);if(byLine[k].length>=2&&m>=600&&(!worst||m>worst.m))worst={k,m}}
+    if(worst)return{key:"line",line:LINES[worst.k].code}}
+  // 3. unusually busy or quiet. (Metra's GPS feed also shows parked and positioning trains, so raw counts
+  //    can't be compared with the timetable. Instead: extra trips that aren't in the timetable, a holiday-style
+  //    timetable today, or a pile of cancellations.)
+  const extra=live.filter(t=>t.trip&&TT.trips&&!TT.trips[t.trip]).length,canceled=(trips||[]).filter(t=>t.canceled).length;
+  if(extra>=6)return{key:"busier"};
+  if(!weekend&&typNow>=20&&E<.65*typNow||canceled>=6)return{key:"lighter"};
+  // 4. a crowd of trains really moving around downtown, outside the rush
+  const pnow=performance.now();
+  if(HUB_C&&level<.6&&live.filter(t=>t.dirSign!==0&&pnow-t.segT0<t.segDur&&Math.abs(t.segTo-t.segFrom)>.05&&Math.hypot(t.shown[0]-HUB_C.c[0],t.shown[1]-HUB_C.c[1])<HUB_C.r).length>=10)return{key:"downtown"};
+  // 5. the night's last downtown departures are close
+  if(TT_BY&&(hr>=21||hr<3)){let lastDep=0;const dates=[chiDate(now-24*3600e3),day];
+    for(const stop in TT_BY)for(const[,t,,,sid]of TT_BY[stop]){const days=TT.svc[sid];if(!days)continue;for(const d of dates)if(days.includes(d)){const x=gtfsBase(d)+hms(t);if(x>lastDep&&x<nowSec+6*3600)lastDep=x}}
+    if(lastDep&&nowSec>=lastDep-45*60&&nowSec<=lastDep+5*60)return{key:"lastTrains"}}
+  // 6. the time of day, as the timetable and the trains show it
+  if(weekend)return{key:hr>=4&&hr<7&&E<=8?"waking":"weekend"};
+  const am=share>=.5;
+  if(level>=.7)return{key:am?"amPeak":"pmPeak"};
+  if(trend>.12&&level>=.25)return{key:am?"amBuild":"pmBuild"};
+  if(trend<-.12&&level>=.25)return{key:am?"amEase":"pmEase"};
+  if(hr>=4&&hr<7)return{key:"waking"};
+  if(hr>=7&&hr<18)return{key:"offpeak"};
+  return{key:"evening"}}
 function tickMood(){
-  const now=Date.now(),p=chiParts(now);let m=+p.hour*60+ +p.minute;
-  // after midnight still counts as the night before until 12:30 AM
-  const late=m<30,wd=dayFmt.format(new Date(late?now-3600e3:now)),weekend=wd==="Sat"||wd==="Sun";if(late)m+=1440;
-  let key="night",lines=MOOD_NIGHT;
-  for(const[a,b,l]of weekend?MOOD_WEEKEND:MOOD_WEEKDAY)if(m>=a&&m<b){key=(weekend?"we":"wd")+a;lines=l;break}
+  const now=window.__moodNow||Date.now();if(now-sitAt>30e3||sitAt>now||window.__moodNow){sitCache=liveSituation(now);sitAt=now}const sit=sitCache;let key,lines;   // re-read the trains every 30 s
+  if(sit){key="s:"+sit.key+(sit.line||"");lines=SIT[sit.key].map(x=>x.replaceAll("{L}",sit.line||""));moodSit=sit}
+  else{const p=chiParts(now);let m=+p.hour*60+ +p.minute;
+    // after midnight still counts as the night before until 12:30 AM
+    const late=m<30,wd=dayFmt.format(new Date(late?now-3600e3:now)),weekend=wd==="Sat"||wd==="Sun";if(late)m+=1440;
+    key="night";lines=MOOD_NIGHT;moodSit={key:"clock"};
+    for(const[a,b,l]of weekend?MOOD_WEEKEND:MOOD_WEEKDAY)if(m>=a&&m<b){key=(weekend?"we":"wd")+a;lines=l;break}}
   if(!(key in moodPick)){const order=lines.map((_,i)=>i);for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
     moodPick[key]={order,i:0,at:now}}
-  const P=moodPick[key];if(now-P.at>=600e3){P.i=(P.i+1)%P.order.length;P.at=now}     // a new line every 10 minutes, never the same twice in a row
+  const P=moodPick[key];if(now-P.at>=600e3){P.i=(P.i+1)%P.order.length;P.at=now}     // a new line every 10 minutes (or right away when the situation changes)
   const t=lines[P.order[P.i]];if(t===moodText)return;
   const first=!moodText;moodText=t;
   if(first){moodTxt.textContent=t;moodX=null;return}
   moodEl.classList.add("swap");setTimeout(()=>{moodTxt.textContent=moodText;moodX=null;moodEl.classList.remove("swap")},800)}
 // a slow ticker: the line drifts right to left across the empty part of the top bar, then comes around again
-const moodTxt=moodEl.querySelector(".mt"),MOOD_SPEED=22;   // pixels per second
+const moodTxt=moodEl.querySelector(".mt"),MOOD_SPEED=26;   // pixels per second; longer lines move a little faster
 let moodX=null;
 function moodFrame(dt){
   const W=moodEl.clientWidth,w=moodTxt.offsetWidth;if(!W)return;
   if(reduceMotion()){moodTxt.style.transform=`translateX(${Math.max(0,(W-w)/2)}px)`;return}   // no motion: sits still
   if(moodX==null)moodX=W*.55;
-  moodX-=MOOD_SPEED*dt;if(moodX<-w)moodX=W;
+  moodX-=MOOD_SPEED*Math.max(1,Math.min(1.7,w/420))*dt;if(moodX<-w)moodX=W;
   moodTxt.style.transform=`translateX(${moodX.toFixed(1)}px)`}
 tickMood();
 
@@ -2247,7 +2317,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 if(GEO_ISSUES.length)console.warn("Schematic ordering issues:",GEO_ISSUES);
-window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get RADAR_C(){return RADAR_C},tickMood,get chase(){return chase},startRide:()=>startRide(performance.now()),get ROT(){return ROT},takeReport,get report(){return report},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
+window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get RADAR_C(){return RADAR_C},tickMood:()=>{sitAt=0;tickMood()},get moodSit(){return moodSit},liveSituation,get TT(){return TT},get chase(){return chase},startRide:()=>startRide(performance.now()),get ROT(){return ROT},takeReport,get report(){return report},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
 applyStyle();tickHeader();poll();requestAnimationFrame(frame);
 })();
 </script>
