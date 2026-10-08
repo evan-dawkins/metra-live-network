@@ -1062,7 +1062,7 @@ function sonarPing(){                                                         //
   if(sndMode!=="sonar"||!actx||actx.state!=="running"||!pingIn)return;
   const now=actx.currentTime,f=520,o=actx.createOscillator(),g=actx.createGain();
   o.frequency.setValueAtTime(f,now);o.frequency.exponentialRampToValueAtTime(f*.96,now+2);
-  g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.022,now+.025);g.gain.exponentialRampToValueAtTime(.0002,now+2.4);
+  g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.014,now+.025);g.gain.exponentialRampToValueAtTime(.0002,now+2.4);
   o.connect(g).connect(pingIn);o.start(now);o.stop(now+2.45)}
 function setSndMode(m){if(!SND_MODES.includes(m))return;sndMode=m;if(m!=="off")sndLast=m;
   try{localStorage.setItem(SND_KEY,m);localStorage.setItem(SND_KEY+"Last",sndLast)}catch(_){}
