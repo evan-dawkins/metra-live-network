@@ -1028,7 +1028,7 @@ function startAudio(){
   const swell=gain(.065),lfo=actx.createOscillator(),depth=gain(.024);lfo.frequency.value=.07;lfo.connect(depth).connect(swell.gain);lfo.start();
   loop(brownBuf).connect(filt("lowpass",200,1.6)).connect(swell).connect(bus.sonar);
   pingIn=gain(1);                                                             // pings: softened, with an underwater echo
-  const plp=filt("lowpass",2200,.4),dly=actx.createDelay(1),fb=gain(.3),dlp=filt("lowpass",1500,.5);dly.delayTime.value=.34;
+  const plp=filt("lowpass",1400,.4),dly=actx.createDelay(1),fb=gain(.3),dlp=filt("lowpass",1500,.5);dly.delayTime.value=.34;
   pingIn.connect(plp);plp.connect(bus.sonar);plp.connect(dly);dly.connect(dlp);dlp.connect(fb);fb.connect(dly);dlp.connect(bus.sonar);
   applySound();
 }
@@ -1060,7 +1060,7 @@ function bubble(){                                                            //
     o.connect(g).connect(bus.water);o.start(t);o.stop(t+d+.02);t+=.05+Math.random()*.09}}
 function sonarPing(){                                                         // one soft ping each time the radar completes a turn (fresh data landed)
   if(sndMode!=="sonar"||!actx||actx.state!=="running"||!pingIn)return;
-  const now=actx.currentTime,f=1040,o=actx.createOscillator(),g=actx.createGain();
+  const now=actx.currentTime,f=520,o=actx.createOscillator(),g=actx.createGain();
   o.frequency.setValueAtTime(f,now);o.frequency.exponentialRampToValueAtTime(f*.96,now+2);
   g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.022,now+.025);g.gain.exponentialRampToValueAtTime(.0002,now+2.4);
   o.connect(g).connect(pingIn);o.start(now);o.stop(now+2.45)}
