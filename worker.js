@@ -1,5 +1,5 @@
 // Metra live relay: fetches Metra's GTFS-realtime feeds, decodes the protobuf by hand,
-// and returns clean JSON to the dashboard. No caching: every call hits Metra fresh.
+// and returns clean JSON to the dashboard. Each feed is fetched at most about every 25 s and shared by all viewers.
 // Secret required: METRA_API_TOKEN
 //
 //   /          -> live data for the dashboard
@@ -400,14 +400,30 @@ async function updateReport(env) {
 const BASE = "https://gtfspublic.metrarr.com/gtfs/public/";
 const JSON_HEADERS = { "content-type": "application/json", "access-control-allow-origin": "*", "Cache-Control": "no-store" };
 
-// Metra's feed blips now and then: try once more after 1.5 s before giving up (not for a real refusal like a bad key).
+// Be gentle with Metra: one answer per feed is shared by every viewer and the report check for 25 s
+// (Metra only updates every 30 s), and if Metra refuses (403/401) we wait 2 minutes before asking again.
+// A blip (5xx/429/network) gets one retry after 1.5 s.
+const FEED_TTL_MS = 25e3, REFUSED_WAIT_MS = 120e3;
+const feedMemo = new Map();                                 // name -> { at, buf } or { at, err, until }
 async function getFeed(name, headers) {
+  const now = Date.now(), m = feedMemo.get(name);
+  if (m && m.buf && now - m.at < FEED_TTL_MS) return m.buf;
+  if (m && m.err && now < m.until) throw m.err;            // still cooling down after a refusal
+  const key = new Request("https://feed-cache.invalid/" + name);
+  try { const hit = await caches.default.match(key); if (hit) { const buf = await hit.arrayBuffer(); feedMemo.set(name, { at: now, buf }); return buf; } } catch (e) {}
   for (let attempt = 1; ; attempt++) {
     let r = null, err = null;
     try { r = await fetch(BASE + name, { headers }); } catch (e) { err = e; }
-    if (r && r.ok) return r.arrayBuffer();
+    if (r && r.ok) {
+      const buf = await r.arrayBuffer();
+      feedMemo.set(name, { at: Date.now(), buf });
+      try { await caches.default.put(key, new Response(buf, { headers: { "Cache-Control": `max-age=${FEED_TTL_MS / 1000}` } })); } catch (e) {}
+      return buf;
+    }
+    const e2 = err || new Error(`Metra ${name} feed returned ${r.status}`);
+    if (r && (r.status === 401 || r.status === 403)) { feedMemo.set(name, { at: Date.now(), err: e2, until: Date.now() + REFUSED_WAIT_MS }); throw e2; }
     const blip = !r || r.status >= 500 || r.status === 429;
-    if (!blip || attempt >= 2) throw err || new Error(`Metra ${name} feed returned ${r.status}`);
+    if (!blip || attempt >= 2) throw e2;
     await new Promise(res => setTimeout(res, 1500));
   }
 }
