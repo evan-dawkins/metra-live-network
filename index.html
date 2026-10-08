@@ -88,8 +88,10 @@ svg#labels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
 .mark span{font-size:14px;color:var(--muted)}
 .mark .slogan{font-style:italic;font-weight:600;color:var(--ink)}
 /* a quiet line under the title describing what the trains are doing at this hour (Chicago time) */
-#mood{position:absolute;left:calc(18px + env(safe-area-inset-left,0px));top:calc(44px + env(safe-area-inset-top,0px));font-size:13px;color:var(--muted);
-  pointer-events:none;z-index:2;transition:opacity .6s ease;white-space:nowrap}
+#mood{flex:1;min-width:0;align-self:center;height:20px;margin:0 28px;overflow:hidden;position:relative;pointer-events:none;
+  font-size:13.5px;line-height:20px;color:var(--muted);transition:opacity .8s ease;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent);mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent)}
+#mood .mt{position:absolute;left:0;top:0;white-space:nowrap;will-change:transform}
 #mood.swap{opacity:0}
 @media (max-width:760px){#mood{display:none}}
 .mark{align-items:center}
@@ -551,7 +553,6 @@ button{touch-action:manipulation}
   <svg id="labels" aria-hidden="true"></svg>
 </div>
 <div id="horizon"></div>
-<div id="mood" aria-live="off"></div>
 
 <div class="top">
   <div class="mark"><b>Metra</b><span><i class="slogan">The way to really fly</i> · Unofficial Chicagoland live map</span>
@@ -563,6 +564,7 @@ button{touch-action:manipulation}
       <button id="rcBtn" class="ibtn" aria-label="Today's report card" aria-expanded="false" aria-controls="rcard" title="Today's report card"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 16V11M10 16V5M15.5 16V8.5"/></svg></button>
       <button id="favBtn" class="ibtn" aria-label="Show your stations" title="Your stations"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.2l2.35 4.95 5.4.68-3.97 3.72 1.03 5.36L10 14.3l-4.81 2.6 1.03-5.35L2.25 7.83l5.4-.68z"/></svg></button>
     </div></div>
+  <div id="mood" aria-live="off"><span class="mt"></span></div>
   <div class="ops">
     <button class="abtn" id="abtn" aria-expanded="false" aria-controls="apanel" title="Metra service alerts"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="ico" d="M8 1.8 L15 14 H1 Z M8 6.2 V9.6 M8 11.6 V11.7"/></svg><span id="acount"></span><span class="aw" id="aword"></span></button>
     <span class="state" id="state"><i></i><span id="stateText">Connecting</span></span>
@@ -1254,7 +1256,7 @@ function layoutLabels(){
   const UI=[{x0:0,y0:0,x1:W,y1:uiInsets().top-4}];          // don't draw labels under the top strip
   const consoleR=$("console").getBoundingClientRect(),zoomR=document.querySelector(".zoom").getBoundingClientRect(),sr=svgRect();
   for(const r of[consoleR,zoomR])UI.push({x0:r.left-sr.left-4,y0:r.top-sr.top-4,x1:r.right-sr.left+4,y1:r.bottom-sr.top+4});
-  for(const q of[$("card"),$("notice"),$("spop"),$("board"),$("fstrip"),$("rcard"),$("mood")]){if(!q.offsetHeight||(q.classList.contains("pnl")&&!q.classList.contains("on"))||getComputedStyle(q).visibility==="hidden")continue;const r=q.getBoundingClientRect();
+  for(const q of[$("card"),$("notice"),$("spop"),$("board"),$("fstrip"),$("rcard")]){if(!q.offsetHeight||(q.classList.contains("pnl")&&!q.classList.contains("on"))||getComputedStyle(q).visibility==="hidden")continue;const r=q.getBoundingClientRect();
     const gx=r.width*.03+3,gy=r.height*.03+3;     // panels may still be scaling in: leave room for their full size
     UI.push({x0:r.left-sr.left-gx,y0:r.top-sr.top-gy,x1:r.right-sr.left+gx,y1:r.bottom-sr.top+gy})}
   const placed=[],out=[],PAD=3,FS=labelScale();
@@ -2068,7 +2070,7 @@ function tickIdle(){const busy=introOpen||$("apanel").classList.contains("on")||
 renderBoard();
 
 /* ---- the line under the title: what service looks like at this hour (Chicago time) ----
-   Ten or so plain descriptions per time slot, cycling every 90 s in a shuffled order and changing as the hour moves on. */
+   Ten or so plain descriptions per time slot, one per hour in a shuffled order, drifting across the top bar like a calm ticker. */
 const MOOD_WEEKDAY=[
   [240,330,["Early service. The first trains of the day are heading out.", "Trains are just getting started for the day.", "The first runs of the day are rolling out.", "Early trains, mostly empty seats.", "Service is just waking up.", "A few early trains on the move.", "The day's first inbound trains are underway.", "The early shift is on its way in.", "Quiet platforms and the first trains of the day.", "Most lines are sending out their first run."]],
   [330,390,["Early commute. Inbound trains are starting to pick up.", "The morning rush is just starting to build.", "Commuters are starting to head in.", "More inbound trains every few minutes.", "The early crowd is on its way downtown.", "Service is picking up for the morning.", "Rush hour is about to start.", "Inbound trains are filling in across the map.", "The early risers are on their way.", "The morning is getting busier by the minute."]],
@@ -2098,11 +2100,20 @@ function tickMood(){
   for(const[a,b,l]of weekend?MOOD_WEEKEND:MOOD_WEEKDAY)if(m>=a&&m<b){key=(weekend?"we":"wd")+a;lines=l;break}
   if(!(key in moodPick)){const order=lines.map((_,i)=>i);for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
     moodPick[key]={order,i:0,at:now}}
-  const P=moodPick[key];if(now-P.at>=90e3){P.i=(P.i+1)%P.order.length;P.at=now}      // a new line every 90 s, never the same twice in a row
+  const P=moodPick[key];if(now-P.at>=3600e3){P.i=(P.i+1)%P.order.length;P.at=now}    // a new line every hour, never the same twice in a row
   const t=lines[P.order[P.i]];if(t===moodText)return;
   const first=!moodText;moodText=t;
-  if(first||reduceMotion()){moodEl.textContent=t;return}
-  moodEl.classList.add("swap");setTimeout(()=>{moodEl.textContent=moodText;moodEl.classList.remove("swap");labelsDirty=true},600)}
+  if(first){moodTxt.textContent=t;moodX=null;return}
+  moodEl.classList.add("swap");setTimeout(()=>{moodTxt.textContent=moodText;moodX=null;moodEl.classList.remove("swap")},800)}
+// a slow ticker: the line drifts right to left across the empty part of the top bar, then comes around again
+const moodTxt=moodEl.querySelector(".mt"),MOOD_SPEED=22;   // pixels per second
+let moodX=null;
+function moodFrame(dt){
+  const W=moodEl.clientWidth,w=moodTxt.offsetWidth;if(!W)return;
+  if(reduceMotion()){moodTxt.style.transform=`translateX(${Math.max(0,(W-w)/2)}px)`;return}   // no motion: sits still
+  if(moodX==null)moodX=W*.55;
+  moodX-=MOOD_SPEED*dt;if(moodX<-w)moodX=W;
+  moodTxt.style.transform=`translateX(${moodX.toFixed(1)}px)`}
 tickMood();
 
 /* =====================================================================
@@ -2194,6 +2205,7 @@ FIT_W=fitAll().w;vb=fitAll();applyVB();syncZoom();
 let lastFrame=performance.now(),labelT=0,cardT=0,statusT=0,lastVB="",lastMarkW=-1;
 function frame(now){
   const dt=Math.min(.25,(now-lastFrame)/1000);lastFrame=now;
+  moodFrame(dt);
   const sNow=serverNow(),k=vb.w/cw();
   for(const t of trains){
     const r=t.L.routes[t.ri],s=curS(t,now),p=poseAt(r,s);t.shown=[p.x,p.y];
