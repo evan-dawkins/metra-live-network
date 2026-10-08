@@ -36,6 +36,7 @@ def main():
     last = {}                                    # trip_id -> (stop_sequence, stop_id, arrival_time)
     HUBS = {"OTC", "CUS", "LSS", "MILLENNIUM"}   # downtown stations: the page shows a departure board for these
     hub = []                                     # (trip_id, stop_id, departure_time, stop_sequence)
+    first = {}                                   # trip_id -> (stop_sequence, departure_time) of its first stop
     for r in rows(z, "stop_times.txt"):
         tid, seq = r.get("trip_id", ""), r.get("stop_sequence", "")
         if not seq.isdigit():
@@ -44,6 +45,9 @@ def main():
         t = (r.get("arrival_time") or r.get("departure_time") or "").strip()
         if not tid or not t:
             continue
+        if tid not in first or seq < first[tid][0]:
+            d0 = (r.get("departure_time") or t).strip()
+            first[tid] = (seq, d0 if len(d0) == 8 else d0.zfill(8))
         if r.get("stop_id", "") in HUBS:
             d = (r.get("departure_time") or t).strip()
             hub.append((tid, r["stop_id"], d if len(d) == 8 else d.zfill(8), seq))
@@ -115,7 +119,31 @@ def main():
     used = {d[4] for d in deps}
     print(f"Downtown departures: {len(deps)} (services {len(used)})")
 
-    out = {"source": SOURCE, "version": version,
+    # how many trains the timetable has running in each 10-minute slot, per day (and how many of those head downtown),
+    # so the page can tell a normal rush hour from an unusually busy or quiet one
+    secs = lambda x: int(x[0:2]) * 3600 + int(x[3:5]) * 60 + int(x[6:8])
+    window = {d.strftime("%Y%m%d") for d in days}
+    expect, expect_in = {}, {}
+    for tid, (_, stop, t_end) in last.items():
+        if tid not in first or tid not in trip_info:
+            continue
+        sid = trip_info[tid][1]
+        a, b = secs(first[tid][1]), secs(t_end)
+        if b < a:
+            continue
+        inbound = stop in HUBS
+        for dstr in runs.get(sid, ()):
+            base = datetime.datetime.strptime(dstr, "%Y%m%d").date()
+            for k in range(a // 600, b // 600 + 1):
+                day = (base + datetime.timedelta(k // 144)).strftime("%Y%m%d")
+                if day not in window:
+                    continue
+                expect.setdefault(day, [0] * 144)[k % 144] += 1
+                if inbound:
+                    expect_in.setdefault(day, [0] * 144)[k % 144] += 1
+    print(f"Expected-train curves for {len(expect)} days, busiest slot {max((max(v) for v in expect.values()), default=0)} trains")
+
+    out = {"source": SOURCE, "version": version, "expect": expect, "expect_in": expect_in,
            "trips": {tid: [stop, t] for tid, (_, stop, t) in sorted(last.items())}, "stops": stops,
            "deps": deps, "svc": {sid: sorted(runs[sid]) for sid in sorted(used)}}
     with open(OUT, "w", encoding="utf-8") as f:
