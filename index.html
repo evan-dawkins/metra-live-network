@@ -88,8 +88,8 @@ svg#labels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
 .mark span{font-size:14px;color:var(--muted)}
 .mark .slogan{font-style:italic;font-weight:600;color:var(--ink)}
 /* a quiet line under the title describing what the trains are doing at this hour (Chicago time) */
-#mood{flex:1;min-width:0;align-self:center;height:20px;margin:0 28px;overflow:hidden;position:relative;pointer-events:none;
-  font-size:13.5px;line-height:20px;color:var(--muted);transition:opacity .8s ease;
+#mood{flex:1;min-width:0;align-self:center;height:40px;margin:0 28px;overflow:hidden;position:relative;pointer-events:none;
+  font-size:27px;line-height:40px;font-style:italic;font-weight:500;color:var(--muted);opacity:.85;transition:opacity .8s ease;
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent);mask-image:linear-gradient(90deg,transparent,#000 10%,#000 90%,transparent)}
 #mood .mt{position:absolute;left:0;top:0;white-space:nowrap;will-change:transform}
 #mood.swap{opacity:0}
@@ -1694,7 +1694,7 @@ function refreshStatus(){
   notice("");setState(inflight?"busy":"live","Live");
 }
 function tickHeader(){
-  const now=new Date();$("clock").textContent=now.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
+  const now=new Date();$("clock").textContent=now.toLocaleTimeString([],{hour:"numeric",minute:"2-digit",second:"2-digit"});
   const left=Math.max(0,nextPollAt-Date.now());
   $("state").title=mode==="sim"?"Simulated trains, not real positions":
     (everLoaded?"Updated "+ago(Date.now()-lastOkAt)+". ":"")+(inflight?"Checking now.":nextPollAt?"Next check in about "+Math.max(5,Math.ceil(left/5000)*5)+" s.":"")
@@ -2070,7 +2070,7 @@ function tickIdle(){const busy=introOpen||$("apanel").classList.contains("on")||
 renderBoard();
 
 /* ---- the line under the title: what service looks like at this hour (Chicago time) ----
-   Ten or so plain descriptions per time slot, one per hour in a shuffled order, drifting across the top bar like a calm ticker. */
+   Ten or so plain descriptions per time slot, a new one every 10 minutes in a shuffled order, drifting across the top bar like a calm ticker. */
 const MOOD_WEEKDAY=[
   [240,330,["Early service. The first trains of the day are heading out.", "Trains are just getting started for the day.", "The first runs of the day are rolling out.", "Early trains, mostly empty seats.", "Service is just waking up.", "A few early trains on the move.", "The day's first inbound trains are underway.", "The early shift is on its way in.", "Quiet platforms and the first trains of the day.", "Most lines are sending out their first run."]],
   [330,390,["Early commute. Inbound trains are starting to pick up.", "The morning rush is just starting to build.", "Commuters are starting to head in.", "More inbound trains every few minutes.", "The early crowd is on its way downtown.", "Service is picking up for the morning.", "Rush hour is about to start.", "Inbound trains are filling in across the map.", "The early risers are on their way.", "The morning is getting busier by the minute."]],
@@ -2100,7 +2100,7 @@ function tickMood(){
   for(const[a,b,l]of weekend?MOOD_WEEKEND:MOOD_WEEKDAY)if(m>=a&&m<b){key=(weekend?"we":"wd")+a;lines=l;break}
   if(!(key in moodPick)){const order=lines.map((_,i)=>i);for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
     moodPick[key]={order,i:0,at:now}}
-  const P=moodPick[key];if(now-P.at>=3600e3){P.i=(P.i+1)%P.order.length;P.at=now}    // a new line every hour, never the same twice in a row
+  const P=moodPick[key];if(now-P.at>=600e3){P.i=(P.i+1)%P.order.length;P.at=now}     // a new line every 10 minutes, never the same twice in a row
   const t=lines[P.order[P.i]];if(t===moodText)return;
   const first=!moodText;moodText=t;
   if(first){moodTxt.textContent=t;moodX=null;return}
