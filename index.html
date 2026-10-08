@@ -266,6 +266,23 @@ body.focused .focusnote{display:block}
 #sndmenu button:hover,#sndmenu button:focus-visible{background:var(--hover);outline:none}
 #sndmenu .ck{width:14px;flex:none;color:var(--ink);font-weight:700}
 #sndmenu button[aria-checked="true"] .ck::before{content:"\2713"}
+#sndmenu .sep{height:1px;background:var(--edge);margin:5px 6px}
+/* ---------- train check-ins: spoken + captioned, during train of the moment only ---------- */
+#checkin{position:absolute;left:50%;bottom:calc(78px + env(safe-area-inset-bottom,0px));width:min(600px,calc(100vw - 32px));margin-left:calc(min(600px,calc(100vw - 32px)) / -2);
+  padding:10px 15px 12px;background:var(--panel);border:1px solid var(--edge);border-radius:12px;box-shadow:var(--shadow);z-index:4;pointer-events:none;
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+#checkin.pnl{translate:0 8px} #checkin.pnl.on{translate:0 0}
+#checkin .h{display:flex;align-items:center;gap:8px;min-width:0}
+#checkin .h .kick2{color:var(--live)}
+#checkin .h .w{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#checkin .vu{display:inline-flex;gap:2px;align-items:flex-end;height:11px;margin-left:auto;flex:none;opacity:0;transition:opacity .4s}
+#checkin.talk .vu{opacity:1}
+#checkin .vu i{width:2px;height:100%;border-radius:1px;background:var(--live);transform-origin:50% 100%;animation:vu .9s ease-in-out infinite}
+#checkin .vu i:nth-child(2){animation-delay:-.3s} #checkin .vu i:nth-child(3){animation-delay:-.6s}
+@keyframes vu{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+#checkin p{margin:6px 0 0;font-size:15.5px;line-height:1.45;color:var(--ink)}
+#checkin p span{opacity:0;transition:opacity .5s ease} #checkin p span.in{opacity:1}
+@media (prefers-reduced-motion:reduce){#checkin .vu i{animation:none}}
 /* sonar: a radar over the Loop, one turn per data refresh */
 .radar{opacity:0;transition:opacity .6s ease;pointer-events:none}
 body.sonar .radar{opacity:1}
@@ -548,6 +565,11 @@ button{touch-action:manipulation}
   #fstrip .n{font-size:12px;color:var(--muted);flex:none}
   body.hasfav .zoom{bottom:calc(102px + env(safe-area-inset-bottom,0px))}
 }
+@media (max-width:760px),(max-height:500px){
+  #checkin{left:8px;right:8px;width:auto;margin-left:0;bottom:auto;top:calc(70px + env(safe-area-inset-top,0px));padding:8px 12px 10px}
+  #checkin p{font-size:14.5px}}
+@media (max-height:500px) and (orientation:landscape){
+  #checkin{left:auto;right:calc(8px + env(safe-area-inset-right,0px));width:min(440px,calc(54vw - 28px));top:calc(50px + env(safe-area-inset-top,0px))}}
 @media (max-width:480px){ #updated{display:none}
   .ops>span:has(#count){display:none} .state.live #stateText{display:none}
   .mark{gap:8px} .mark .tools{gap:5px} .ops{gap:9px} }
@@ -616,6 +638,7 @@ button{touch-action:manipulation}
 </div>
 
 <div id="card" class="pnl" role="dialog" aria-label="Train details"></div>
+<div id="checkin" class="pnl" role="status" aria-live="polite"></div>
 <div id="spop" class="pnl" role="dialog" aria-label="Station"></div>
 <section id="board" aria-label="Your stations"></section>
 <section id="rcard" class="pnl" aria-label="Today's report card"></section>
@@ -625,6 +648,8 @@ button{touch-action:manipulation}
   <button role="menuitemradio" data-m="water" aria-checked="false"><span class="ck" aria-hidden="true"></span><span>Water</span></button>
   <button role="menuitemradio" data-m="sonar" aria-checked="false"><span class="ck" aria-hidden="true"></span><span>Sonar</span></button>
   <button role="menuitemradio" data-m="off" aria-checked="false"><span class="ck" aria-hidden="true"></span><span>Off</span></button>
+  <div class="sep" role="separator"></div>
+  <button role="menuitemcheckbox" id="ciTog" aria-checked="true" title="A voice checks in on each train of the moment"><span class="ck" aria-hidden="true"></span><span>Train check-ins</span></button>
 </div>
 <div id="apanel" class="pnl" role="dialog" aria-label="Service alerts"><div class="ahd"><b>Service alerts</b><span id="ascope"></span><button id="aclose" aria-label="Close alerts">×</button></div><div class="alist" id="alist"></div></div>
 <div id="notice" class="pnl" role="status"></div>
@@ -1063,10 +1088,11 @@ themeBtn.onclick=e=>{if(e)e.stopPropagation();const next=document.documentElemen
 const sndBtn=$("snd"),sndMenu=$("sndmenu"),SND_KEY="metraLive.sound",SND_MODES=["brown","water","sonar","off"];
 const SND_LEVEL={brown:1,water:1,sonar:1},SND_NAME={brown:"brown noise",water:"water",sonar:"sonar",off:"off"};
 let sndMode="brown",sndLast="brown";
+const CI_KEY="metraLive.checkins";let ciOn=true;try{ciOn=localStorage.getItem(CI_KEY)!=="0"}catch(_){}
 try{const v=localStorage.getItem(SND_KEY);if(SND_MODES.includes(v))sndMode=v;
   const l=localStorage.getItem(SND_KEY+"Last");if(SND_MODES.includes(l)&&l!=="off")sndLast=l}catch(_){}
 if(sndMode!=="off")sndLast=sndMode;
-let sndOn=sndMode!=="off",actx=null,bus={},pingIn=null,bubbleTO=0,waterBands=[],waterTO=0;
+let sndOn=sndMode!=="off",actx=null,duckG=null,voG=null,bus={},pingIn=null,bubbleTO=0,waterBands=[],waterTO=0;
 function buildNoise(ctx){
   const sr=ctx.sampleRate,n=Math.floor(sr*12),fade=Math.floor(sr*1.5),raw=new Float32Array(n+fade);
   let last=0;for(let i=0;i<raw.length;i++){last=(last+0.02*(Math.random()*2-1))/1.02;raw[i]=last*3.5}
@@ -1086,7 +1112,9 @@ function startAudio(){
   if(actx)return;
   try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;actx=new AC()}catch(_){actx=null;return}
   const brownBuf=buildNoise(actx),whiteBuf=buildWhite(actx);
-  const master=()=>{const g=actx.createGain();g.gain.value=0;g.connect(actx.destination);return g};
+  duckG=actx.createGain();duckG.connect(actx.destination);                   // ambient dips under the check-in voice
+  voG=actx.createGain();voG.gain.value=.95;voG.connect(actx.destination);
+  const master=()=>{const g=actx.createGain();g.gain.value=0;g.connect(duckG);return g};
   const loop=buf=>{const src=actx.createBufferSource();src.buffer=buf;src.loop=true;src.start(0,Math.random()*(buf.duration-1));return src};
   const filt=(type,freq,q)=>{const f=actx.createBiquadFilter();f.type=type;f.frequency.value=freq;f.Q.value=q;return f};
   const gain=v=>{const g=actx.createGain();g.gain.value=v;return g};
@@ -1117,7 +1145,7 @@ function applySound(fast){
   for(const q of sndMenu.querySelectorAll("[data-m]"))q.setAttribute("aria-checked",String(q.dataset.m===sndMode));
   scheduleBubbles();wanderWater();document.body.classList.toggle("sonar",sndMode==="sonar");
   if(!actx)return;
-  if(sndOn&&actx.state==="suspended")actx.resume().then(()=>applySound()).catch(()=>{});
+  if((sndOn||ciOn)&&actx.state==="suspended")actx.resume().then(()=>applySound()).catch(()=>{});
   const t=actx.currentTime;
   for(const m in bus){const g=bus[m].gain,on=m===sndMode;g.cancelScheduledValues(t);g.setValueAtTime(g.value,t);
     g.linearRampToValueAtTime(on?SND_LEVEL[m]:0,t+(on?(fast?1.4:2.5):.6))}
@@ -1146,13 +1174,14 @@ function openSndMenu(){const r=sndBtn.getBoundingClientRect();
 function closeSndMenu(){if(!sndMenu.classList.contains("on"))return;sndMenu.classList.remove("on");sndBtn.setAttribute("aria-expanded","false")}
 sndBtn.onclick=e=>{e.stopPropagation();sndMenu.classList.contains("on")?closeSndMenu():openSndMenu()};
 sndMenu.addEventListener("pointerdown",e=>e.stopPropagation());
-sndMenu.addEventListener("click",e=>{const q=e.target.closest("[data-m]");if(!q)return;e.stopPropagation();setSndMode(q.dataset.m);closeSndMenu();sndBtn.focus({preventScroll:true})});
+sndMenu.addEventListener("click",e=>{if(e.target.closest("#ciTog")){e.stopPropagation();setCheckins(!ciOn);return}
+  const q=e.target.closest("[data-m]");if(!q)return;e.stopPropagation();setSndMode(q.dataset.m);closeSndMenu();sndBtn.focus({preventScroll:true})});
 sndMenu.addEventListener("keydown",e=>{const items=[...sndMenu.querySelectorAll("button")],i=items.indexOf(document.activeElement);
   if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();items[(i+(e.key==="ArrowDown"?1:items.length-1))%items.length].focus()}
   else if(e.key==="Tab")closeSndMenu()});
 document.addEventListener("pointerdown",e=>{if(sndMenu.classList.contains("on")&&!e.target.closest("#sndmenu,#snd"))closeSndMenu()});
 const firstGesture=()=>{removeEventListener("pointerdown",firstGesture,true);removeEventListener("keydown",firstGesture,true);
-  if(sndOn)startAudio();else applySound()};
+  if(sndOn||ciOn){startAudio();ciPreload()}else applySound()};
 addEventListener("pointerdown",firstGesture,true);addEventListener("keydown",firstGesture,true);
 applySound();
 /* radar: centred on the downtown terminals, one full turn per 30 s data refresh.
@@ -2250,7 +2279,7 @@ function rideVB(t){const W=cw(),H=ch(),w=Math.max(MIN_W*1.3,FIT_W/6),h=w*H/W,k=w
   return{x:t.shown[0]-sx*k,y:t.shown[1]-sy*k,w,h}}
 function chaseBusy(){return introOpen||drag||(selected&&!(chase&&(chase.card||chase.manual)&&selected===chase.t))||spopRec||$("apanel").classList.contains("on")||sndMenu.classList.contains("on")||document.body.classList.contains("boardsheet")}
 function startRide(now){const t=pickChaseTrain();if(!t){chase={phase:"rest",t0:now};return}
-  chaseLast=t;camAnim=null;following=null;
+  chaseLast=t;camAnim=null;following=null;ciPrep(t);
   chase={phase:"in",t0:now,t,home:chase&&chase.home||fitAll(),from:{...vb},a:0,tilt:0,goTilt:canTilt()};
   document.body.classList.add("chasing")}
 // Follow on a train's card: the same ride-along view, for that train, until you close its card
@@ -2263,6 +2292,7 @@ function rideAlong(t){
   document.body.classList.add("chasing");renderCard()}
 const riding=t=>!!(chase&&chase.manual&&chase.t===t&&(chase.phase==="in"||chase.phase==="ride"));
 function endChase(now,quick){if(!chase||chase.phase==="exit"||chase.phase==="out"&&!quick)return;
+  if(quick)ciStop();else if(!chase.manual&&chase.phase==="ride")ciSay("end",chase.t);
   if(chase.phase==="rest"&&quick){finishChase();return}
   hideChaseCard();
   chase={...chase,phase:quick?"exit":"out",t0:now,from:{...vb},fromA:ROT.a,fromTilt:chaseTilt}}
@@ -2270,7 +2300,7 @@ function showChaseCard(t){if(selected&&selected!==t)return;                     
   selected=t;t.g.classList.add("sel");card.classList.add("on");if(isNarrow())document.body.classList.add("sheet");
   chase.card=true;renderCard();placeCard();labelsDirty=true}
 function hideChaseCard(){if(!chase||!chase.card)return;chase.card=false;if(selected===chase.t)closeCard()}
-function finishChase(){hideChaseCard();chase=null;ROT.a=0;setTilt(0);document.body.classList.remove("chasing");labelsDirty=true}
+function finishChase(){hideChaseCard();ciStop();chase=null;ROT.a=0;setTilt(0);document.body.classList.remove("chasing");labelsDirty=true}
 function setTilt(k){chaseTilt=k;
   if(k<=.001){if(stage.classList.contains("tilt")){stage.classList.remove("tilt");stage.style.transform="";horizon.style.opacity=0}return}
   stage.classList.add("tilt");stage.style.transform=`perspective(1000px) rotateX(${(34*k).toFixed(2)}deg) scale(${(1+.55*k).toFixed(3)})`;horizon.style.opacity=k.toFixed(3)}
@@ -2288,8 +2318,10 @@ function chaseFrame(now,dt){
     if(chase.phase==="in"){const k=Math.min(1,e/CH.IN),z=easeIO(k),r=easeIO(Math.max(0,(k-.2)/.8));
       if(k===0||chase.a===0)chase.a=want;
       Object.assign(vb,lerpVB(chase.from,rideVB(t),z));ROT.a=chase.a*r;setTilt(chase.goTilt?r:0);
-      if(k>=1){chase.phase="ride";chase.t0=now;if(!chase.manual)showChaseCard(t)}}
-    else{Object.assign(vb,rideVB(t));ROT.a=chase.a;if(chase.goTilt)setTilt(1);if(e>CH.RIDE&&!chase.manual)endChase(now,false)}
+      if(k>=1){chase.phase="ride";chase.t0=now;if(!chase.manual){showChaseCard(t);ciSay("start",t)}}}
+    else{Object.assign(vb,rideVB(t));ROT.a=chase.a;if(chase.goTilt)setTilt(1);
+      if(!chase.manual&&!chase.ciMid&&e>CH.RIDE*.5){chase.ciMid=true;ciSay("mid",t)}
+      if(e>CH.RIDE&&!chase.manual)endChase(now,false)}
   }else{                                                                // "out" (ride over) or "exit" (you moved): back to the flat, whole map
     const d=chase.phase==="exit"?CH.EXIT:CH.OUT,k=Math.min(1,e/d),z=easeIO(k);
     if(t&&!t.gone){ROT.cx=t.shown[0];ROT.cy=t.shown[1]}
@@ -2305,6 +2337,106 @@ for(const ev of["pointerdown","keydown","wheel","touchstart"])addEventListener(e
   if(chase.manual&&(ev==="keydown"||!(e.target.closest&&e.target.closest("#stage"))))return;   // following: only grabbing the map itself ends it
   endChase(performance.now(),true)},{passive:true,capture:true});
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&chase)finishChase()});
+
+/* =====================================================================
+   TRAIN CHECK-INS
+   During train of the moment (never a train you picked yourself), a soft voice checks in on the train,
+   like a weather stream's camera check-ins: which train, how it's running, what's next. Every phrase was
+   recorded ahead of time (tools/build_voice.py, a free open-source voice) and is stitched together here,
+   so nothing is generated live. The same words show as a caption. Toggle: sound menu → Train check-ins.
+   ===================================================================== */
+const ciBox=$("checkin"),ciTog=$("ciTog");
+const VO={man:null,manP:null,bufs:{},loading:{},srcs:[],timers:[],hideT:0,gen:0};
+function setCheckins(on){ciOn=on;try{localStorage.setItem(CI_KEY,on?"1":"0")}catch(_){}
+  ciTog.setAttribute("aria-checked",String(on));if(on){startAudio();applySound();ciPreload()}else ciStop()}
+ciTog.setAttribute("aria-checked",String(ciOn));
+function voManifest(){return VO.manP||=fetch("voice/manifest.json").then(r=>r.ok?r.json():null).then(m=>VO.man=m).catch(()=>{VO.manP=null;return null})}
+function voPack(name){if(VO.bufs[name])return Promise.resolve(VO.bufs[name]);if(!actx)return Promise.resolve(null);
+  return VO.loading[name]||=fetch(`voice/${name}.mp3`).then(r=>{if(!r.ok)throw 0;return r.arrayBuffer()})
+    .then(b=>new Promise((res,rej)=>actx.decodeAudioData(b,res,rej))).then(b=>VO.bufs[name]=b)
+    .catch(()=>{delete VO.loading[name];return null})}
+function ciPreload(){if(ciOn&&actx)voManifest().then(m=>{if(m)voPack("core")})}
+function ciPrep(t){if(ciOn&&actx)voManifest().then(m=>{if(m){voPack("core");voPack(t.L.key)}})}
+const ciPick=a=>a[Math.floor(Math.random()*a.length)];
+// what the check-in can honestly say about this train, from the same data as its card
+function ciFacts(t){
+  const r=t.L.routes[t.ri],s=t.lastObsS,n=r.st.length,near=Math.round(s),atStn=Math.abs(s-near)<0.12,nowSec=serverNow()/1000;
+  const lo=Math.floor(s),hi=Math.min(n-1,Math.ceil(s));
+  const last=t.dirSign>0?stationAt(t,atStn?near:lo):stationAt(t,atStn?near:hi);
+  const ni=t.dirSign>0?(atStn?near+1:hi):(atStn?near-1:lo);
+  const gpsNext=ni>=0&&ni<n&&!(atStn&&ni===near)?stationAt(t,ni):null;
+  const f={t,code:t.L.code,dir:t.dirSign<0?"in":"out",last,atStn,next:gpsNext?{id:gpsNext.id}:null,final:null,late:null,hasTrip:false};
+  const tr=tripFor(t);
+  if(tr&&tr.stops&&tr.stops.length){f.hasTrip=true;
+    let st=tr.stops.filter(x=>(x.arr||x.dep||0)>=nowSec-30);
+    if(st.length>1&&last&&STOP_MAP[st[0].id]===last.id)st=st.slice(1);
+    const pt=x=>({id:STOP_MAP[x.id],tm:x.arr||x.dep||0});
+    if(st.length){f.next=pt(st[0]);if(st.length>1)f.final=pt(st[st.length-1])}
+    const sc=TT&&TT.trips&&TT.trips[tr.trip_id],fs=sc&&tr.stops.find(x=>x.id===sc[0]),pr=fs&&(fs.arr||fs.dep);
+    if(pr){const day=chiDate(serverNow());let sched=gtfsBase(day)+hms(sc[1]);
+      if(sched-pr>12*3600)sched-=86400;else if(pr-sched>12*3600)sched+=86400;
+      if(Math.abs(pr-sched)<3*3600)f.late=pr-sched}}
+  return f}
+// each sentence: [[pack,key],...] pieces plus the caption text
+function ciLines(kind,f){
+  const M=VO.man,L=[],nowSec=serverNow()/1000,slug=id=>M&&M.stn[id],nm=id=>{const r=STN.get(id);return r?stnName(r):""};
+  const tail=tm=>{if(!tm)return["t_up","coming up."];const m=Math.round((tm-nowSec)/60);
+    return m<=0?["t_now","coming up now."]:m===1?["t_1","in about a minute."]:m<=90?["t_"+m,`in about ${m} minutes.`]:["t_up","coming up."]};
+  const stop=(pre,word,p)=>{if(!p||!p.id||!STN.get(p.id))return;const[k,tx]=tail(p.tm);
+    L.push({p:[[f.t.L.key,pre+"_"+slug(p.id)],["core",k]],tx:`${word} ${nm(p.id)}, ${tx}`})};
+  if(kind==="start"){
+    const v=Math.random()<.5?0:1,dw=f.dir==="in"?"an inbound":"an outbound";
+    L.push({p:[["core",`op_${f.code}_${f.dir}_${v}`]],tx:`${v?"Let's ride along with":"Checking in on"} ${dw} ${f.t.L.name} train.`});
+    if(!f.hasTrip)L.push({p:[["core","s_gps"]],tx:"No times from Metra on this one. Just its GPS."});
+    else if(f.late!=null){const m=Math.round(f.late/60);
+      L.push(m<=-2?{p:[["core","s_early"]],tx:"It's running a little ahead of schedule."}
+        :m<=0?ciPick([{p:[["core","s_ontime_0"]],tx:"It's right on schedule."},{p:[["core","s_ontime_1"]],tx:"Right on time so far."}])
+        :m===1?{p:[["core","s_late_1"]],tx:"It's running about a minute behind."}
+        :m<=30?{p:[["core","s_late_"+m]],tx:`It's running about ${m} minutes behind.`}
+        :{p:[["core","s_late_big"]],tx:"It's running more than half an hour behind."})}
+    stop("nx","Next up,",f.next);
+  }else if(kind==="mid"){
+    if(f.last&&STN.get(f.last.id))L.push(f.atStn?{p:[[f.t.L.key,"at_"+slug(f.last.id)]],tx:`Now at ${nm(f.last.id)}.`}
+      :{p:[[f.t.L.key,"ps_"+slug(f.last.id)]],tx:`Just passed ${nm(f.last.id)}.`});
+    if(f.final&&f.final.id!==(f.next&&f.next.id))stop("ls","The last stop is",f.final);else stop("nx","Next up,",f.next);
+  }else{const v=Math.floor(Math.random()*3);
+    L.push({p:[["core","end_"+v]],tx:["That's the check-in. Back out to the full map.","That's all for this one. Back to the whole network.","Okay, that wraps it up. Back out to the map."][v]})}
+  return L}
+function ciStop(){VO.gen++;for(const x of VO.srcs)try{x.stop()}catch(_){}VO.srcs=[];for(const x of VO.timers)clearTimeout(x);VO.timers=[];
+  clearTimeout(VO.hideT);ciBox.classList.remove("on","talk");
+  if(duckG&&actx){const t=actx.currentTime;duckG.gain.cancelScheduledValues(t);duckG.gain.setTargetAtTime(1,t,.4)}}
+async function ciSay(kind,t){
+  if(!ciOn||!t)return;
+  const gen=++VO.gen;for(const x of VO.srcs)try{x.stop()}catch(_){}VO.srcs=[];for(const x of VO.timers)clearTimeout(x);VO.timers=[];clearTimeout(VO.hideT);
+  await voManifest();if(gen!==VO.gen)return;
+  const f=ciFacts(t),lines=ciLines(kind,f);if(!lines.length)return;
+  // can we speak it? every piece must be recorded and loaded, and audio must be allowed (after a first click)
+  let voice=!!(VO.man&&actx&&actx.state==="running"&&!document.hidden);
+  if(voice){const packs=[...new Set(lines.flatMap(l=>l.p.map(q=>q[0])))];
+    const bufs=await Promise.race([Promise.all(packs.map(voPack)),new Promise(r=>setTimeout(()=>r(null),2500))]);if(gen!==VO.gen)return;
+    voice=!!bufs&&bufs.every(Boolean)&&lines.every(l=>l.p.every(([pk,k])=>VO.man[pk==="core"?"core":"lines"]&&(pk==="core"?VO.man.core[k]:VO.man.lines[pk]&&VO.man.lines[pk][k])))}
+  // caption
+  if(kind!=="end"||!ciBox.classList.contains("on")){
+    const where=f.last&&STN.get(f.last.id)?nmSafe(f.last.id):"";
+    ciBox.innerHTML=`<div class="h"><span class="kick2">Train check-in</span>${bullet(t.L.key)}<span class="w">${esc([trainLabel(t),where].filter(Boolean).join(" · "))}</span>`
+      +`<span class="vu" aria-hidden="true"><i></i><i></i><i></i></span></div><p></p>`}
+  const para=ciBox.querySelector("p");if(kind==="start"||kind==="end")para.textContent="";
+  const spans=lines.map(l=>{const sp=document.createElement("span");sp.textContent=(para.textContent||para.children.length?" ":"")+l.tx;para.appendChild(sp);return sp});
+  ciBox.classList.add("on");labelsDirty=true;
+  const reveal=(sp,ms)=>VO.timers.push(setTimeout(()=>sp.classList.add("in"),ms));
+  let total;
+  if(voice){const a0=actx.currentTime+.12;let at=a0;
+    ciBox.classList.add("talk");duckG.gain.cancelScheduledValues(a0);duckG.gain.setTargetAtTime(.4,actx.currentTime,.25);
+    lines.forEach((l,i)=>{reveal(spans[i],(at-actx.currentTime)*1000);
+      for(const[pk,k]of l.p){const ix=pk==="core"?VO.man.core[k]:VO.man.lines[pk][k],src=actx.createBufferSource();
+        src.buffer=VO.bufs[pk];src.connect(voG);src.start(at,ix[0],ix[1]);VO.srcs.push(src);at+=ix[1]-.03}
+      at+=.32});
+    total=(at-actx.currentTime)*1000;duckG.gain.setTargetAtTime(1,a0+total/1000,.6);
+    VO.timers.push(setTimeout(()=>ciBox.classList.remove("talk"),total))}
+  else{let ms=150;lines.forEach((l,i)=>{reveal(spans[i],ms);ms+=900+l.tx.length*55});total=ms}
+  VO.hideT=setTimeout(()=>{ciBox.classList.remove("on","talk");labelsDirty=true},total+(kind==="end"?1500:4500))}
+const nmSafe=id=>{const r=STN.get(id);return r?stnName(r):""};
+document.addEventListener("visibilitychange",()=>{if(document.hidden)ciStop()});
 
 /* =====================================================================
    MAIN LOOP
@@ -2355,7 +2487,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 if(GEO_ISSUES.length)console.warn("Schematic ordering issues:",GEO_ISSUES);
-window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get RADAR_C(){return RADAR_C},tickMood:()=>{sitAt=0;tickMood()},get moodSit(){return moodSit},liveSituation,get TT(){return TT},get chase(){return chase},startRide:()=>startRide(performance.now()),get ROT(){return ROT},takeReport,get report(){return report},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
+window.__metra={ciSay,ciFacts,get VO(){return VO},setCheckins,get ciOn(){return ciOn},get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get RADAR_C(){return RADAR_C},tickMood:()=>{sitAt=0;tickMood()},get moodSit(){return moodSit},liveSituation,get TT(){return TT},get chase(){return chase},startRide:()=>startRide(performance.now()),get ROT(){return ROT},takeReport,get report(){return report},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
 applyStyle();tickHeader();poll();requestAnimationFrame(frame);
 })();
 </script>

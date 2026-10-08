@@ -20,7 +20,7 @@ It's built to sit on a second monitor like an aquarium: calm, quiet, and fun to 
 - **Your stations.** Pin up to 5 and they stay on screen.
 - **A daily report card** showing how many trains ran on time.
 - **A calm ticker** in the top bar that describes what the trains are doing right now.
-- **Train of the moment,** a screensaver that rides along behind a live train.
+- **Train of the moment,** a screensaver that rides along behind a live train, with a soft voice checking in on it.
 - **Ambient sound:** brown noise, water, or a sonar radar.
 - **Little trains** instead of arrows, if you like.
 - **Light and dark mode.**
@@ -106,11 +106,30 @@ Leave the page alone for 2 minutes and it turns into a screensaver:
 
 1. The camera swoops in behind a live train, turning and tilting the map so you're riding along.
 2. The train's card pops up with where it's headed and its next stop.
-3. After about a minute it pulls back to the whole map, rests, then picks another train.
+3. A soft voice **checks in** on the train, and the words show as a caption.
+4. After about a minute it pulls back to the whole map, rests, then picks another train.
 
 Move the mouse, tap or press a key and the normal map comes right back. On phones the map turns but doesn't tilt. If your device is set to reduce motion, the screensaver stays off.
 
-<img src="docs/2026-10-08-train-of-the-moment.png" alt="Riding along behind a UP-W train" width="640">
+<img src="docs/2026-10-08-train-of-the-moment.png" alt="Riding along behind a train, with its check-in caption" width="640">
+
+### Train check-ins
+
+Like a weather stream checking in on a live camera, the voice checks in three times per ride:
+
+| When | What it says |
+|---|---|
+| **The ride starts** | Which line and direction, how it's running, and the next stop. *"Checking in on an inbound Union Pacific North train. It's running about two minutes behind. Next up, Ravenswood, in about three minutes."* |
+| **Halfway** | Where it just was and where it ends up. *"Just passed Rogers Park. The last stop is Ogilvie, in about fifteen minutes."* |
+| **The ride ends** | A short sign-off. *"That's the check-in. Back out to the full map."* |
+
+- Everything it says comes from Metra's live data, the same as the train's card.
+- The background sound dips while it talks.
+- Turn it on or off in the **speaker** menu → **Train check-ins**. The page remembers your choice.
+- It only checks in during train of the moment, never on a train you picked yourself.
+- Like all sound, the voice starts after your first click. Until then you see the caption only. With check-ins off, there's neither.
+
+The voice is free: every phrase was recorded once ahead of time with [Kokoro](https://github.com/thewh1teagle/kokoro-onnx), an open-source voice, and the page stitches the pieces together.
 
 ## Sounds
 
@@ -122,6 +141,7 @@ Click the **speaker** next to the title to pick one:
 | **Water** | Gentle moving water with the odd bubble. |
 | **Sonar** | A deep underwater rumble. A radar sweeps the map once every 30 seconds and gives a soft, low ping when fresh train data arrives. |
 | **Off** | Silence. |
+| **Train check-ins** | A separate on/off switch at the bottom of the menu for the voice that checks in during train of the moment. See above. |
 
 The page remembers your pick. Sound starts after your first click, because browsers don't allow it before that. On iPhone and iPad, the silent switch mutes it.
 
@@ -187,6 +207,8 @@ There's nothing to install and no build step.
 | `schedule.json` | Metra's timetable, trimmed down to what the map needs. Updated nightly, automatically |
 | `tools/build_schedule.py` | Builds `schedule.json` from Metra's timetable |
 | `.github/workflows/timetable.yml` | Tells GitHub to run that every night |
+| `voice/` | The recorded check-in voice, packed into a few audio files |
+| `tools/build_voice.py` | Records the check-in voice (only needed if you change what it says) |
 | `docs/` | The screenshots on this page |
 | `README.md` | This page |
 
