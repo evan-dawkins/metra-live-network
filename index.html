@@ -455,7 +455,7 @@ body.chasing .stlbl,body.chasing .lakelbl{display:none}
 .train .glow{opacity:.15}
 .train.stale .glow{opacity:0}
 .train .body{stroke:var(--bg);stroke-width:1.7;stroke-linejoin:round}
-/* cute trains: a little silver double-decker in the line's colour; wheels turn only while it's really moving */
+/* cute trains: a small train seen from above, in the line's colour with a shiny roof and headlight; it sways gently only while really moving */
 .train .car{display:none}
 body.cute .train.known .car{display:inline} body.cute .train .body.arrow{display:none!important}
 .car .shell{fill:#D7DDE3;stroke:var(--bg);stroke-width:1.3;stroke-linejoin:round}
@@ -466,7 +466,7 @@ body.cute .train.known .car{display:inline} body.cute .train .body.arrow{display
 .train.roll .car .wh{animation:wheel .55s linear infinite}
 .train.roll .car .cb{animation:chug .28s ease-in-out infinite alternate}
 @keyframes wheel{to{transform:rotate(360deg)}}
-@keyframes chug{from{transform:translateY(0)}to{transform:translateY(-.7px)}}
+@keyframes chug{from{transform:translateY(-.25px)}to{transform:translateY(.25px)}}
 #styleBtn svg{width:16px;height:16px} #styleBtn svg path,#styleBtn svg circle{stroke:currentColor;stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
 #styleBtn[aria-pressed="true"]{color:var(--ink);background:var(--pressed)}
 .train .ring{fill:none;stroke-width:1.4;opacity:0;vector-effect:non-scaling-stroke;transform-box:fill-box;transform-origin:center}
@@ -1417,15 +1417,21 @@ function makeTrainVisual(L){
   el("circle",{class:"ring",r:7,stroke:L.color},g);
   const inner=el("g",{},g);
   const arrow=el("path",{class:"body arrow",d:"M12.5,0 L-7,8 L-3.2,0 L-7,-8 Z",fill:L.color},inner);
-  const carFlip=el("g",{class:"car"},inner),cz=el("g",{transform:"scale(1.3)"},carFlip),cb=el("g",{class:"cb"},cz);   // drawn facing +x (the way it's heading)
-  el("path",{class:"shell",d:"M-13,4 L-13,-5.5 Q-13,-9 -9.5,-9 L7.5,-9 Q11.5,-9 13,-5.5 L14.2,-1 Q14.6,4 10.5,4 Z"},cb);
-  el("rect",{x:-13,y:-1.3,width:27.4,height:2.9,fill:L.color},cb);                                 // line-colour stripe
-  for(const x of[-10.6,-5.6,-.6])el("rect",{class:"win",x,y:-7.5,width:3.9,height:2.9,rx:1.1},cb);  // upper deck
-  for(const x of[-10.6,-.6])el("rect",{class:"win",x,y:-4.2,width:3.9,height:2.1,rx:.9},cb);        // lower deck
-  el("rect",{class:"door",x:-5.4,y:-4.4,width:3.5,height:7.3,rx:.7},cb);
-  el("path",{class:"win",d:"M5,-7.5 L9.8,-7.5 Q11.5,-7.5 12,-5.5 L12.6,-3.4 L5,-3.4 Z"},cb);          // cab window
-  el("circle",{class:"lamp",cx:12.4,cy:1.5,r:1.45},cb);
-  for(const x of[-9,-4.6,4.6,9]){const w=el("g",{class:"wh"},cz);el("circle",{cx:x,cy:5.9,r:2.5},w);el("line",{x1:x-1.7,y1:5.9,x2:x+1.7,y2:5.9},w)}
+
+  if(!window.__cg)window.__cg={};   // one shading gradient per line, shared by all its trains
+  const mix=(h,t,k)=>{const c=[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)),u=t==="w"?255:0;return"#"+c.map(v=>Math.round(v+(u-v)*k).toString(16).padStart(2,"0")).join("")};
+  const gid=(kind)=>{const id=kind+"-"+L.key;if(!window.__cg[id]){window.__cg[id]=1;
+    const gr=el("linearGradient",{id,x1:0,y1:0,x2:0,y2:1},defs);
+    const st=kind==="cs"?[[0,mix(L.color,"w",.45)],[.35,mix(L.color,"w",.12)],[.7,L.color],[1,mix(L.color,"b",.35)]]
+                        :[[0,mix(L.color,"b",.12)],[.32,L.color],[.5,mix(L.color,"w",.6)],[.68,L.color],[1,mix(L.color,"b",.18)]];
+    for(const[o,c]of st)el("stop",{offset:o,"stop-color":c},gr)}return`url(#${id})`};
+  const carFlip=el("g",{class:"car"},inner),cz=el("g",{},carFlip);   // seen from above, facing +x
+  el("rect",{x:-13.6,y:-3.6,width:29,height:9.2,rx:4.4,fill:"#000",opacity:.22},cz);                                   // shadow underneath
+  const cb=el("g",{class:"cb"},cz);
+  el("path",{d:"M15.5,0 L27,-4.2 L27,4.2 Z",fill:"#FFE7A3",opacity:.16},cb);                                         // headlight beam                                   // shadow, offset down-right
+  el("path",{d:"M-12.5,-4.6 L8,-4.6 Q14.6,-4.6 15.6,0 Q14.6,4.6 8,4.6 L-12.5,4.6 Q-14.6,4.6 -14.6,2.6 L-14.6,-2.6 Q-14.6,-4.6 -12.5,-4.6 Z",fill:gid("ct"),stroke:"var(--bg)","stroke-width":1.1,"stroke-linejoin":"round"},cb);
+  for(const x of[-10,-3.6,2.8])el("rect",{x,y:-1.2,width:4,height:2.4,rx:.7,fill:"#fff",opacity:.35},cb);            // roof units
+  el("path",{d:"M9.6,-3.3 Q13.3,-2.8 13.7,0 Q13.3,2.8 9.6,3.3",stroke:"#132029","stroke-width":1.5,fill:"none","stroke-linecap":"round",opacity:.85},cb);  // windshield
   const dot=el("circle",{class:"body",r:6.2,fill:L.color},g);
   el("circle",{class:"hit",r:18},g);
   // trail: a soft band in the line's colour with a bright core, both fading out behind the train
@@ -2146,7 +2152,7 @@ function frame(now){
     if(known){const want=(t.dirSign<0?p.ang+Math.PI:p.ang)*180/Math.PI;
       if(t.rot==null||reduceMotion())t.rot=want;else{let d=((want-t.rot)%360+540)%360-180;t.rot+=Math.abs(d)<.3?d:d*(1-Math.exp(-dt/.09))}  // turn at bends over ~0.15 s
       const rs=`rotate(${t.rot.toFixed(1)})`;if(rs!==t.rs){t.rs=rs;t.inner.setAttribute("transform",rs)}
-      if(cuteTrains){const c=Math.cos((t.rot+ROT.a*180/Math.PI)*Math.PI/180),flip=t.flip?c<.15:c<-.15;   // keep the wheels on the bottom
+      if(false){const c=0,flip=false;   // (seen from above, so it never needs flipping)   // keep the wheels on the bottom
         if(flip!==t.flip){t.flip=flip;t.carFlip.setAttribute("transform",flip?"scale(1,-1)":"")}}}
     const a=`${t.L.name} line${trainLabel(t)?", "+trainLabel(t).toLowerCase():""}, ${dirText(t).toLowerCase()}${t.stale?", position out of date":""}`;
     if(a!==t.a11y){t.a11y=a;t.g.firstChild.textContent=a}
