@@ -43,6 +43,7 @@ Everything works on a phone too. Your saved stations sit in a strip at the botto
 
 <img src="docs/2026-10-07-phone.png" alt="The map on a phone" width="260">
 - Has light and dark mode.
+- Can show cute little trains instead of arrows. Click the train button next to the title, or press **C**. Their wheels turn while they're moving.
 
 ## Sounds
 

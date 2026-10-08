@@ -448,6 +448,20 @@ body.chasing .stlbl,body.chasing .lakelbl{display:none}
 .train .glow{opacity:.15}
 .train.stale .glow{opacity:0}
 .train .body{stroke:var(--bg);stroke-width:1.7;stroke-linejoin:round}
+/* cute trains: a little silver double-decker in the line's colour; wheels turn only while it's really moving */
+.train .car{display:none}
+body.cute .train.known .car{display:inline} body.cute .train .body.arrow{display:none!important}
+.car .shell{fill:#D7DDE3;stroke:var(--bg);stroke-width:1.3;stroke-linejoin:round}
+:root[data-theme="light"] .car .shell{fill:#C9D1D9}
+.car .win{fill:#26384A} .car .lamp{fill:#FFE7A3} .car .door{fill:#B9C2CB}
+.car .wh{fill:#3A4652;stroke:var(--bg);stroke-width:.8;transform-box:fill-box;transform-origin:center}
+.car .wh line{stroke:#C9D1D9;stroke-width:.9}
+.train.roll .car .wh{animation:wheel .55s linear infinite}
+.train.roll .car .cb{animation:chug .28s ease-in-out infinite alternate}
+@keyframes wheel{to{transform:rotate(360deg)}}
+@keyframes chug{from{transform:translateY(0)}to{transform:translateY(-.7px)}}
+#styleBtn svg{width:16px;height:16px} #styleBtn svg path,#styleBtn svg circle{stroke:currentColor;stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#styleBtn[aria-pressed="true"]{color:var(--ink);background:var(--pressed)}
 .train .ring{fill:none;stroke-width:1.4;opacity:0;vector-effect:non-scaling-stroke;transform-box:fill-box;transform-origin:center}
 .train.ping .ring{animation:ping 1.4s ease-out}
 @keyframes ping{0%{opacity:.75;transform:scale(1)}100%{opacity:0;transform:scale(3.15)}}
@@ -531,6 +545,7 @@ button{touch-action:manipulation}
     <div class="tools">
       <button id="helpBtn" aria-label="What is this? Open the welcome guide" title="What is this? (?)" aria-controls="intro">?</button>
       <button id="snd" class="ibtn snd" aria-pressed="true" aria-label="Sound" aria-haspopup="menu" aria-expanded="false" aria-controls="sndmenu" title="Sound (M mutes)"><svg viewBox="0 0 20 20" aria-hidden="true"><path class="sp" d="M3 7.6h3.1L10.4 4v12l-4.3-3.6H3z"/><path class="w1" d="M13.2 7.6c.9.6 1.4 1.4 1.4 2.4s-.5 1.8-1.4 2.4"/><path class="w2" d="M15.5 5.2c1.7 1.2 2.6 2.9 2.6 4.8s-.9 3.6-2.6 4.8"/><path class="x" d="M13.2 7.8l4.6 4.4M17.8 7.8l-4.6 4.4"/></svg></button>
+      <button id="styleBtn" class="ibtn" aria-pressed="false" aria-label="Show trains as cute little trains" title="Cute trains (C)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 12.5V8a3 3 0 0 1 3-3h7a3 3 0 0 1 3 3v4.5z"/><path d="M6 8h2.2M11.8 8H14"/><circle cx="6.5" cy="14.6" r="1.4"/><circle cx="13.5" cy="14.6" r="1.4"/></svg></button>
       <button id="theme" class="ibtn theme" aria-label="Switch to light mode" title="Switch to light mode (T)"><svg viewBox="0 0 20 20" aria-hidden="true"><g class="sun"><circle cx="10" cy="10" r="3.4"/><path d="M10 2.6v1.8M10 15.6v1.8M2.6 10h1.8M15.6 10h1.8M4.8 4.8l1.3 1.3M13.9 13.9l1.3 1.3M4.8 15.2l1.3-1.3M13.9 6.1l1.3-1.3"/></g><path class="moon" d="M15.6 12.4A6.2 6.2 0 0 1 7.6 4.4a6.2 6.2 0 1 0 8 8z"/></svg></button>
       <button id="rcBtn" class="ibtn" aria-label="Today's report card" aria-expanded="false" aria-controls="rcard" title="Today's report card"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4.5 16V11M10 16V5M15.5 16V8.5"/></svg></button>
       <button id="favBtn" class="ibtn" aria-label="Show your stations" title="Your stations"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2.2l2.35 4.95 5.4.68-3.97 3.72 1.03 5.36L10 14.3l-4.81 2.6 1.03-5.35L2.25 7.83l5.4-.68z"/></svg></button>
@@ -971,7 +986,15 @@ addEventListener("keydown",e=>{if(e.target.closest&&e.target.closest('input:not(
   if(e.key==="-"||e.key==="_")zoomBy(1.35);
   if(e.key==="0")resetView();
   if(e.key==="t"||e.key==="T")themeBtn.click();
+  if(e.key==="c"||e.key==="C")styleBtn.click();
   if(e.key==="m"||e.key==="M")setSndMode(sndMode==="off"?sndLast:"off");});
+/* ---- arrows or cute trains (remembered in this browser) ---- */
+const styleBtn=$("styleBtn"),STYLE_KEY="metraLive.cuteTrains";
+let cuteTrains=(()=>{try{return localStorage.getItem(STYLE_KEY)==="1"}catch(_){return false}})();
+function applyStyle(){document.body.classList.toggle("cute",cuteTrains);styleBtn.setAttribute("aria-pressed",String(cuteTrains));
+  styleBtn.title=cuteTrains?"Back to arrows (C)":"Cute trains (C)";styleBtn.setAttribute("aria-label",cuteTrains?"Show trains as arrows":"Show trains as cute little trains");
+  if(!cuteTrains)for(const t of trains){t.roll=false;t.g.classList.remove("roll")}}
+styleBtn.onclick=e=>{e.stopPropagation();cuteTrains=!cuteTrains;try{cuteTrains?localStorage.setItem(STYLE_KEY,"1"):localStorage.removeItem(STYLE_KEY)}catch(_){}applyStyle()};
 /* ---- dark / light ---- */
 const themeBtn=$("theme");
 function setTheme(t){
@@ -1386,7 +1409,16 @@ function makeTrainVisual(L){
   el("circle",{class:"halo",r:16},g);
   el("circle",{class:"ring",r:7,stroke:L.color},g);
   const inner=el("g",{},g);
-  const arrow=el("path",{class:"body",d:"M12.5,0 L-7,8 L-3.2,0 L-7,-8 Z",fill:L.color},inner);
+  const arrow=el("path",{class:"body arrow",d:"M12.5,0 L-7,8 L-3.2,0 L-7,-8 Z",fill:L.color},inner);
+  const carFlip=el("g",{class:"car"},inner),cz=el("g",{transform:"scale(1.3)"},carFlip),cb=el("g",{class:"cb"},cz);   // drawn facing +x (the way it's heading)
+  el("path",{class:"shell",d:"M-13,4 L-13,-5.5 Q-13,-9 -9.5,-9 L7.5,-9 Q11.5,-9 13,-5.5 L14.2,-1 Q14.6,4 10.5,4 Z"},cb);
+  el("rect",{x:-13,y:-1.3,width:27.4,height:2.9,fill:L.color},cb);                                 // line-colour stripe
+  for(const x of[-10.6,-5.6,-.6])el("rect",{class:"win",x,y:-7.5,width:3.9,height:2.9,rx:1.1},cb);  // upper deck
+  for(const x of[-10.6,-.6])el("rect",{class:"win",x,y:-4.2,width:3.9,height:2.1,rx:.9},cb);        // lower deck
+  el("rect",{class:"door",x:-5.4,y:-4.4,width:3.5,height:7.3,rx:.7},cb);
+  el("path",{class:"win",d:"M5,-7.5 L9.8,-7.5 Q11.5,-7.5 12,-5.5 L12.6,-3.4 L5,-3.4 Z"},cb);          // cab window
+  el("circle",{class:"lamp",cx:12.4,cy:1.5,r:1.45},cb);
+  for(const x of[-9,-4.6,4.6,9]){const w=el("g",{class:"wh"},cz);el("circle",{cx:x,cy:5.9,r:2.5},w);el("line",{x1:x-1.7,y1:5.9,x2:x+1.7,y2:5.9},w)}
   const dot=el("circle",{class:"body",r:6.2,fill:L.color},g);
   el("circle",{class:"hit",r:18},g);
   // trail: a soft band in the line's colour with a bright core, both fading out behind the train
@@ -1395,7 +1427,7 @@ function makeTrainVisual(L){
     el("stop",{offset:0,style:`stop-color:${col};stop-opacity:0`},gr);el("stop",{offset:1,style:`stop-color:${col};stop-opacity:${a}`},gr);return gr};
   const gh=mkGrad(uid+"h",L.color,.8),gc=mkGrad(uid+"c","#FFFFFF",.95);
   const band=el("path",{class:"tband",stroke:`url(#${uid}h)`},tg),core=el("path",{class:"tcore",stroke:`url(#${uid}c)`},tg);
-  return{g,inner,arrow,dot,trail:{g:tg,band,core,grads:[gh,gc]},hist:[],histRi:-1}}
+  return{g,inner,arrow,dot,carFlip,trail:{g:tg,band,core,grads:[gh,gc]},hist:[],histRi:-1}}
 let trailUid=0;
 const TRAIL_MS=90000,TRAIL_MAX_PX=150;
 function drawTrail(t,r,p,now,k){
@@ -2049,11 +2081,15 @@ function frame(now){
     if(stale!==t.stale){t.stale=stale;t.g.classList.toggle("stale",stale)}
     drawTrail(t,r,p,now,k);
     const known=t.dirSign!==0;
-    if(t.known!==known){t.known=known;t.arrow.style.display=known?"":"none";t.dot.style.display=known?"none":""}
+    if(t.known!==known){t.known=known;t.arrow.style.display=known?"":"none";t.dot.style.display=known?"none":"";t.g.classList.toggle("known",known)}
+    if(cuteTrains){const roll=known&&!stale&&now-t.segT0<t.segDur&&Math.abs(t.segTo-t.segFrom)>.01&&!reduceMotion();   // wheels turn only while it's really moving
+      if(roll!==t.roll){t.roll=roll;t.g.classList.toggle("roll",roll)}}
     const tf=`translate(${p.x.toFixed(2)},${p.y.toFixed(2)}) scale(${k.toFixed(4)})`;if(tf!==t.tf){t.tf=tf;t.g.setAttribute("transform",tf)}
     if(known){const want=(t.dirSign<0?p.ang+Math.PI:p.ang)*180/Math.PI;
       if(t.rot==null||reduceMotion())t.rot=want;else{let d=((want-t.rot)%360+540)%360-180;t.rot+=Math.abs(d)<.3?d:d*(1-Math.exp(-dt/.09))}  // turn at bends over ~0.15 s
-      const rs=`rotate(${t.rot.toFixed(1)})`;if(rs!==t.rs){t.rs=rs;t.inner.setAttribute("transform",rs)}}
+      const rs=`rotate(${t.rot.toFixed(1)})`;if(rs!==t.rs){t.rs=rs;t.inner.setAttribute("transform",rs)}
+      if(cuteTrains){const c=Math.cos((t.rot+ROT.a*180/Math.PI)*Math.PI/180),flip=t.flip?c<.15:c<-.15;   // keep the wheels on the bottom
+        if(flip!==t.flip){t.flip=flip;t.carFlip.setAttribute("transform",flip?"scale(1,-1)":"")}}}
     const a=`${t.L.name} line${trainLabel(t)?", "+trainLabel(t).toLowerCase():""}, ${dirText(t).toLowerCase()}${t.stale?", position out of date":""}`;
     if(a!==t.a11y){t.a11y=a;t.g.firstChild.textContent=a}
   }
@@ -2080,7 +2116,7 @@ function frame(now){
 }
 if(GEO_ISSUES.length)console.warn("Schematic ordering issues:",GEO_ISSUES);
 window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get RADAR_C(){return RADAR_C},get chase(){return chase},startRide:()=>startRide(performance.now()),get ROT(){return ROT},takeReport,get report(){return report},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
-tickHeader();poll();requestAnimationFrame(frame);
+applyStyle();tickHeader();poll();requestAnimationFrame(frame);
 })();
 </script>
 </body>
