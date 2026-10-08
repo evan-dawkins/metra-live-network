@@ -310,6 +310,9 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 .sdir{margin-top:10px;padding-top:8px;border-top:1px solid var(--edge)}
 .sdir .arr:first-of-type{margin-top:4px}
 .snone{font-size:13px;color:var(--muted);margin-top:4px}
+.arr .st{display:block;font-size:11px;font-weight:600;letter-spacing:.02em;text-align:right;color:var(--muted);margin-top:1px}
+.arr .st.ok{color:var(--live)} .arr .st.late{color:#E8A33D} .arr .st.cx{color:#E5484D}
+.arr.dep .when{line-height:1.15}
 .fav .sdir{margin-top:7px;padding-top:0;border-top:0}
 .fav .sdir .kick2{font-size:10px}
 .fav .sdir .arr:first-of-type{margin-top:3px}
@@ -1838,10 +1841,50 @@ function predRow(a,nowSec){return`<div class="arr${a.live?"":" pred"}" title="${
   +`<span class="when"><b>${minsTo(a.tm,nowSec)}</b>${fmtClock(a.tm)}</span></div>`}
 function gpsRow(a){return`<div class="arr">${bullet(a.key)}<span class="to">${a.t.run.no?`<span class="no">${a.t.run.no}</span>`:""}${a.t.dirSign<0?"to Chicago":"outbound"}</span>`
   +`<span class="when gps">${a.at?"at station":a.stops===0?"next stop":a.stops+1+" stops away"}</span></div>`}
+/* ---- departure board for the downtown stations ----
+   Like the screen on the station wall: every train leaving in the next 3 hours from Metra's timetable
+   (schedule.json, rebuilt nightly), with a countdown. When Metra has a live prediction for that train,
+   its time replaces the timetable one and the status says on time / late; otherwise it says Scheduled. */
+const HUB_STOP={"Ogilvie":"OTC","Union Station":"CUS","LaSalle St":"LSS","Millennium":"MILLENNIUM"};
+let TT=null,TT_BY={};
+async function loadTimetable(){try{const r=await fetch("schedule.json",{cache:"no-cache"});if(!r.ok)return;const d=await r.json();
+  if(!d||!Array.isArray(d.deps))return;TT=d;TT_BY={};for(const x of d.deps)(TT_BY[x[0]]||=[]).push(x);boardSig="";spopSig=""}catch(_){}}
+loadTimetable();setInterval(loadTimetable,6*3600e3);
+const chiFmt=new Intl.DateTimeFormat("en-US",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"});
+function chiParts(ms){const p={};for(const x of chiFmt.formatToParts(new Date(ms)))p[x.type]=x.value;return p}
+const chiDate=ms=>{const p=chiParts(ms);return p.year+p.month+p.day};
+const dayBase=new Map();
+function gtfsBase(date){let b=dayBase.get(date);if(b==null){const g=Date.UTC(+date.slice(0,4),+date.slice(4,6)-1,+date.slice(6,8),12),p=chiParts(g);
+  const off=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second)-Math.floor(g/1000)*1000;b=Math.round((g-off)/1000)-12*3600;dayBase.set(date,b)}return b}
+const hms=t=>{const[h,m,x]=t.split(":").map(Number);return h*3600+m*60+x};
+const trainNoOf=tid=>{const m=/_[A-Z]+(\d+)_V/.exec(tid||"");return m?m[1]:""};
+function departuresAt(rec,nowSec,n){
+  const stop=HUB_STOP[rec.id];if(!TT||!stop||!TT_BY[stop])return null;
+  const now=nowSec*1000,dates=[chiDate(now-24*3600e3),chiDate(now)],live=new Map();
+  for(const tr of trips||[])live.set(tr.trip_id,tr);
+  const out=[];
+  for(const[,t,tid,route,sid]of TT_BY[stop]){const days=TT.svc[sid];if(!days)continue;
+    for(const d of dates){if(!days.includes(d))continue;const sched=gtfsBase(d)+hms(t);if(sched<nowSec-2*3600||sched>nowSec+3*3600)continue;
+      if(sched<nowSec-90&&!live.has(tid))continue;                                    // past its time with no live news: gone
+      const key=ROUTE_KEY[route];if(!key)continue;
+      const tr=live.get(tid);let pred=0,cx=false;
+      if(tr){cx=!!tr.canceled;const x=(tr.stops||[]).find(q=>STOP_MAP[q.id]===rec.id);if(x)pred=x.dep||x.arr||0}
+      const tm=pred||sched;if(tm<nowSec-60)continue;                                  // already gone
+      const gps=trains.some(q=>q.trip===tid&&!q.stale);
+      out.push({key,tm,sched,pred,cx,gps,no:trainNoOf(tid)||trainNo(tr&&tr.veh_label),dest:destName(TT.trips[tid]?TT.trips[tid][0]:"")})}}
+  return out.sort((a,b)=>a.tm-b.tm).slice(0,n)}
+function depRow(a,nowSec){
+  const late=a.pred?Math.round((a.pred-a.sched)/60):0;
+  const st=a.cx?`<span class="st cx">Canceled</span>`:a.pred?(late>=2?`<span class="st late">${late} min late</span>`:`<span class="st ok">On time</span>`):`<span class="st">Scheduled</span>`;
+  const m=Math.round((a.tm-nowSec)/60),cd=a.cx?"–":m<=0?"Now":m+" min";
+  return`<div class="arr dep" title="${a.pred?"Metra's live prediction":"From Metra's timetable"}${a.gps?". Train is reporting GPS":""}">${bullet(a.key)}`
+    +`<span class="to">${a.no?`<span class="no">${a.no}</span>`:""}to ${esc(a.dest||"?")}</span>`
+    +`<span class="when"><b>${cd}</b>${fmtClock(a.tm)}${st}</span></div>`}
 // next trains by direction. Downtown hubs: only trains leaving (arrivals there aren't useful).
 // Suburban stations: toward Chicago and away from Chicago, both always shown.
 function dirRows(rec,per){
   const nowSec=serverNow()/1000,term=DOWNTOWN.has(rec.id);
+  if(term&&mode!=="sim"){const b=departuresAt(rec,nowSec,per);if(b)return{src:"board",a:b.map(x=>depRow(x,nowSec))}}   // downtown: the departure board
   if(mode!=="sim"&&trips){const p=predictionsAt(rec,nowSec).filter(x=>!(term&&x.ends));
     const row=x=>predRow(x,nowSec);
     return term?{src:"pred",a:p.slice(0,per).map(row)}:{src:"pred",a:p.filter(x=>x.inb).slice(0,per).map(row),b:p.filter(x=>!x.inb).slice(0,per).map(row)}}
@@ -1850,12 +1893,12 @@ function dirRows(rec,per){
     :{src:"gps",a:g.filter(x=>x.t.dirSign<0).slice(0,per).map(gpsRow),b:g.filter(x=>x.t.dirSign>0).slice(0,per).map(gpsRow)}}
 function dirSections(term,d){
   const sec=(h,r)=>`<div class="sdir"><span class="kick2">${h}</span>${r.length?r.join(""):`<div class="snone">Nothing on the way right now</div>`}</div>`;
-  return term?sec("Departing",d.a):sec("To Chicago",d.a)+sec("Away from Chicago",d.b)}
+  return term?sec("Departing",d.a):sec("To Chicago",d.a)+sec("Away from Chicago",d.b)}   // (hubs with a timetable: nothing leaving in 3 h reads the same)
 function stationSchedule(rec,per){
   const nowSec=serverNow()/1000,term=DOWNTOWN.has(rec.id);
   if(mode!=="sim"&&!everLoaded)return`<div class="fav none" style="padding:0;border:0">Waiting for live data…</div>`;
   if(mode!=="sim"&&!feedHealthy())return`<div class="fav none" style="padding:0;border:0">Live feed not answering, so no times right now.</div>`;
-  const d=dirRows(rec,term?per+2:per),note=d.src==="pred"?"Minutes are Metra's live predictions.":mode==="sim"?"Simulated trains, not real.":"No times in the feed right now. Based on live train positions.";
+  const d=dirRows(rec,term?per+3:per),note=d.src==="board"?"Every train leaving in the next 3 hours. Live times when Metra has them, otherwise the timetable.":d.src==="pred"?"Minutes are Metra's live predictions.":mode==="sim"?"Simulated trains, not real.":"No times in the feed right now. Based on live train positions.";
   return dirSections(term,d)+`<div class="note">${note}</div>`;
 }
 
@@ -1946,7 +1989,7 @@ function renderReport(){
 function boardRows(rec){
   if(mode!=="sim"&&!everLoaded)return{msg:"Waiting for live data…"};
   if(mode!=="sim"&&!feedHealthy())return{msg:"Live feed not answering, so no times right now."};
-  const term=DOWNTOWN.has(rec.id),d=dirRows(rec,term?3:2);return{src:d.src,html:dirSections(term,d)}}
+  const term=DOWNTOWN.has(rec.id),d=dirRows(rec,term?4:2);return{src:d.src==="board"?"pred":d.src,html:dirSections(term,d)}}
 function renderBoard(){
   const favs=FAV.ids.map(id=>STN.get(id)).filter(Boolean),narrow=isNarrow();
   document.body.classList.toggle("hasfav",favs.length>0);
@@ -1994,7 +2037,7 @@ favBtn.onclick=e=>{e.stopPropagation();if(isNarrow()){closeStationPop();if(selec
 let stripIdx=0,stripT=0;
 function tickStrip(){if(!isNarrow())return;const favs=FAV.ids.map(id=>STN.get(id)).filter(Boolean);if(!favs.length)return;
   if(++stripT>=8){stripT=0;stripIdx++}const rec=favs[stripIdx%favs.length],nowSec=serverNow()/1000;let info="";
-  if(mode!=="sim"&&feedHealthy()&&trips){const p=predictionsAt(rec,nowSec).filter(x=>!(DOWNTOWN.has(rec.id)&&x.ends))[0];info=p?`<b>${minsTo(p.tm,nowSec)}</b> · ${LINES[p.key].code} ${p.ends?"arriving":"to "+esc(p.dest)}`:"No trains on the way"}
+  if(mode!=="sim"&&feedHealthy()&&trips){const b=DOWNTOWN.has(rec.id)&&departuresAt(rec,nowSec,1),p=b&&b.length?b[0]:predictionsAt(rec,nowSec).filter(x=>!(DOWNTOWN.has(rec.id)&&x.ends))[0];info=p?`<b>${minsTo(p.tm,nowSec)}</b> · ${LINES[p.key].code} ${p.ends?"arriving":"to "+esc(p.dest)}`:"No trains on the way"}
   else{const r=arrivalRows(rec,1);info=r.msg||r.html.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim()}
   const html=`<span class="s">★ ${esc(rec.label)}</span><span class="i">${info}</span>${favs.length>1?`<span class="n">${stripIdx%favs.length+1}/${favs.length}</span>`:""}`;
   if(fstrip.dataset.h!==html){const first=!fstrip.dataset.h;fstrip.dataset.h=html;
