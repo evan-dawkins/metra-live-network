@@ -56,6 +56,7 @@ Everything works on a phone too. Your saved stations sit in a strip at the botto
 
 <img src="docs/2026-10-07-phone.png" alt="The map on a phone" width="260">
 - Has light and dark mode.
+- A quiet line under the title describes what the trains are doing at this hour, like "Morning rush. Most trains are headed downtown." It follows Chicago time and has its own set for weekends.
 - Can show little trains instead of arrows. Click the train button next to the title, or press **C**. They look like model trains seen from above, in their line's color, and sway gently while they're moving.
 
 <img src="docs/2026-10-07-cute-trains.png" alt="A UP-NW train seen from above, rolling past Cumberland" width="420">

@@ -87,6 +87,11 @@ svg#labels{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;
 .mark b{font-size:21px;font-weight:700;letter-spacing:.01em}
 .mark span{font-size:14px;color:var(--muted)}
 .mark .slogan{font-style:italic;font-weight:600;color:var(--ink)}
+/* a quiet line under the title describing what the trains are doing at this hour (Chicago time) */
+#mood{position:absolute;left:calc(18px + env(safe-area-inset-left,0px));top:calc(44px + env(safe-area-inset-top,0px));font-size:13px;color:var(--muted);
+  pointer-events:none;z-index:2;transition:opacity .6s ease;white-space:nowrap}
+#mood.swap{opacity:0}
+@media (max-width:760px){#mood{display:none}}
 .mark{align-items:center}
 /* ---------- welcome panel + its corner button ---------- */
 #helpBtn,.ibtn{width:26px;height:26px;border-radius:50%;border:1px solid var(--edge);background:var(--soft);color:var(--muted);
@@ -546,6 +551,7 @@ button{touch-action:manipulation}
   <svg id="labels" aria-hidden="true"></svg>
 </div>
 <div id="horizon"></div>
+<div id="mood" aria-live="off"></div>
 
 <div class="top">
   <div class="mark"><b>Metra</b><span><i class="slogan">The way to really fly</i> · Unofficial Chicagoland live map</span>
@@ -1248,7 +1254,7 @@ function layoutLabels(){
   const UI=[{x0:0,y0:0,x1:W,y1:uiInsets().top-4}];          // don't draw labels under the top strip
   const consoleR=$("console").getBoundingClientRect(),zoomR=document.querySelector(".zoom").getBoundingClientRect(),sr=svgRect();
   for(const r of[consoleR,zoomR])UI.push({x0:r.left-sr.left-4,y0:r.top-sr.top-4,x1:r.right-sr.left+4,y1:r.bottom-sr.top+4});
-  for(const q of[$("card"),$("notice"),$("spop"),$("board"),$("fstrip"),$("rcard")]){if(!q.offsetHeight||(q.classList.contains("pnl")&&!q.classList.contains("on"))||getComputedStyle(q).visibility==="hidden")continue;const r=q.getBoundingClientRect();
+  for(const q of[$("card"),$("notice"),$("spop"),$("board"),$("fstrip"),$("rcard"),$("mood")]){if(!q.offsetHeight||(q.classList.contains("pnl")&&!q.classList.contains("on"))||getComputedStyle(q).visibility==="hidden")continue;const r=q.getBoundingClientRect();
     const gx=r.width*.03+3,gy=r.height*.03+3;     // panels may still be scaling in: leave room for their full size
     UI.push({x0:r.left-sr.left-gx,y0:r.top-sr.top-gy,x1:r.right-sr.left+gx,y1:r.bottom-sr.top+gy})}
   const placed=[],out=[],PAD=3,FS=labelScale();
@@ -2061,6 +2067,42 @@ function tickIdle(){const busy=introOpen||$("apanel").classList.contains("on")||
   document.body.classList.toggle("idle",!busy&&Date.now()-lastInput>10000)}
 renderBoard();
 
+/* ---- the line under the title: what service looks like at this hour (Chicago time) ----
+   One of a few plain descriptions per time slot, picked at random once per visit, changing as the hour moves on. */
+const MOOD_WEEKDAY=[  // [from, to) in minutes after midnight
+  [240,330,["Early service. The first trains of the day are heading out.","Trains are just getting started for the day."]],
+  [330,390,["Early commute. Inbound trains are starting to pick up.","The morning rush is just starting to build."]],
+  [390,510,["Morning rush. Most trains are headed downtown.","Peak hour, mostly inbound to the city."]],
+  [510,570,["The morning rush is tapering off.","Last of the morning commuters heading in."]],
+  [570,690,["Late morning. Service is lighter until midday.","Off-peak hours, so trains run less often."]],
+  [690,810,["Midday. Trains run about once an hour on most lines.","Midday service, quiet and steady."]],
+  [810,930,["Early afternoon. The first outbound runs are leaving.","Quiet stretch before the evening rush."]],
+  [930,990,["The evening rush is starting to build.","Outbound trains are picking up."]],
+  [990,1110,["Evening rush. Most trains are headed out of the city.","Peak hour, mostly outbound from downtown."]],
+  [1110,1170,["The evening rush is tapering off.","Last of the rush-hour trains heading home."]],
+  [1170,1320,["Evening service. Trains are spacing out for the night.","Rush hour's over, and service is winding down."]],
+  [1320,1470,["Late-night service. The last trains are making their runs.","Last trains of the night are heading out."]]];
+const MOOD_WEEKEND=[
+  [240,540,["Weekend morning. Trains run less often today."]],
+  [540,1080,["Weekend schedule. Trains run about every hour or two."]],
+  [1080,1320,["Weekend evening service."]],
+  [1320,1470,["Last weekend trains are heading out."]]];
+const MOOD_NIGHT=["Most trains are parked until early morning.","The system's quiet until the first trains roll out."];
+const moodEl=$("mood"),moodPick={},dayFmt=new Intl.DateTimeFormat("en-US",{timeZone:"America/Chicago",weekday:"short"});
+let moodText="";
+function tickMood(){
+  const now=Date.now(),p=chiParts(now);let m=+p.hour*60+ +p.minute;
+  // after midnight still counts as the night before until 12:30 AM
+  const late=m<30,wd=dayFmt.format(new Date(late?now-3600e3:now)),weekend=wd==="Sat"||wd==="Sun";if(late)m+=1440;
+  let key="night",lines=MOOD_NIGHT;
+  for(const[a,b,l]of weekend?MOOD_WEEKEND:MOOD_WEEKDAY)if(m>=a&&m<b){key=(weekend?"we":"wd")+a;lines=l;break}
+  if(!(key in moodPick))moodPick[key]=Math.floor(Math.random()*lines.length);
+  const t=lines[moodPick[key]];if(t===moodText)return;
+  const first=!moodText;moodText=t;
+  if(first||reduceMotion()){moodEl.textContent=t;return}
+  moodEl.classList.add("swap");setTimeout(()=>{moodEl.textContent=moodText;moodEl.classList.remove("swap");labelsDirty=true},600)}
+tickMood();
+
 /* =====================================================================
    TRAIN OF THE MOMENT (screensaver)
    After 2 minutes with no input, the camera picks a live train, swings in behind it (the map turns
@@ -2187,11 +2229,11 @@ function frame(now){
   labelT-=dt;if(labelT<=0&&labelsDirty&&!camAnim){labelT=chasing?.4:.12;labelsDirty=false;renderLabels()}   // during a camera glide labels just ride along; re-placed when it lands
   placeCard();placeStationPop();
   cardT-=dt;if(cardT<=0){cardT=1;if(selected)renderCard();if(spopRec)renderStationPop();renderBoard()}
-  statusT-=dt;if(statusT<=0){statusT=1;refreshStatus();tickHeader();tickIdle();tickStrip();renderReport()}
+  statusT-=dt;if(statusT<=0){statusT=1;refreshStatus();tickHeader();tickIdle();tickStrip();renderReport();tickMood()}
   requestAnimationFrame(frame);
 }
 if(GEO_ISSUES.length)console.warn("Schematic ordering issues:",GEO_ISSUES);
-window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get RADAR_C(){return RADAR_C},get chase(){return chase},startRide:()=>startRide(performance.now()),get ROT(){return ROT},takeReport,get report(){return report},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
+window.__metra={get trips(){return trips},set trips(v){trips=v},FAV,openStationPop,renderBoard,STOP_MAP,get introOpen(){return introOpen},get actx(){return actx},get sndOn(){return sndOn},get gain(){return bus[sndMode]?bus[sndMode].gain.value:0},get sndMode(){return sndMode},setSndMode,get bus(){return bus},get RADAR_C(){return RADAR_C},tickMood,get chase(){return chase},startRide:()=>startRide(performance.now()),get ROT(){return ROT},takeReport,get report(){return report},takeAlerts,get alerts(){return alerts},startSim,stopSim,get mode(){return mode},poll,LINES,STN,STATIONS,GEO_ISSUES,layoutLabels,ingest,get trains(){return trains},get vb(){return vb},set vb(v){vb=v},renderLabels,setFocus,selectTrain,fitAll};
 applyStyle();tickHeader();poll();requestAnimationFrame(frame);
 })();
 </script>
