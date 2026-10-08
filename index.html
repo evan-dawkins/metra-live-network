@@ -310,6 +310,10 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 .sdir{margin-top:10px;padding-top:8px;border-top:1px solid var(--edge)}
 .sdir .arr:first-of-type{margin-top:4px}
 .snone{font-size:13px;color:var(--muted);margin-top:4px}
+.fav .sdir{margin-top:7px;padding-top:0;border-top:0}
+.fav .sdir .kick2{font-size:10px}
+.fav .sdir .arr:first-of-type{margin-top:3px}
+.fav .snone{font-size:12.5px;margin-top:2px}
 
 /* ---------- train of the moment (screensaver) ---------- */
 body.chasing .stlbl,body.chasing .lakelbl{display:none}
@@ -1834,18 +1838,25 @@ function predRow(a,nowSec){return`<div class="arr${a.live?"":" pred"}" title="${
   +`<span class="when"><b>${minsTo(a.tm,nowSec)}</b>${fmtClock(a.tm)}</span></div>`}
 function gpsRow(a){return`<div class="arr">${bullet(a.key)}<span class="to">${a.t.run.no?`<span class="no">${a.t.run.no}</span>`:""}${a.t.dirSign<0?"to Chicago":"outbound"}</span>`
   +`<span class="when gps">${a.at?"at station":a.stops===0?"next stop":a.stops+1+" stops away"}</span></div>`}
+// next trains by direction. Downtown hubs: only trains leaving (arrivals there aren't useful).
+// Suburban stations: toward Chicago and away from Chicago, both always shown.
+function dirRows(rec,per){
+  const nowSec=serverNow()/1000,term=DOWNTOWN.has(rec.id);
+  if(mode!=="sim"&&trips){const p=predictionsAt(rec,nowSec).filter(x=>!(term&&x.ends));
+    const row=x=>predRow(x,nowSec);
+    return term?{src:"pred",a:p.slice(0,per).map(row)}:{src:"pred",a:p.filter(x=>x.inb).slice(0,per).map(row),b:p.filter(x=>!x.inb).slice(0,per).map(row)}}
+  const g=approachingAt(rec);
+  return term?{src:"gps",a:g.filter(x=>x.t.dirSign>0).slice(0,per).map(gpsRow)}
+    :{src:"gps",a:g.filter(x=>x.t.dirSign<0).slice(0,per).map(gpsRow),b:g.filter(x=>x.t.dirSign>0).slice(0,per).map(gpsRow)}}
+function dirSections(term,d){
+  const sec=(h,r)=>`<div class="sdir"><span class="kick2">${h}</span>${r.length?r.join(""):`<div class="snone">Nothing on the way right now</div>`}</div>`;
+  return term?sec("Departing",d.a):sec("To Chicago",d.a)+sec("Away from Chicago",d.b)}
 function stationSchedule(rec,per){
   const nowSec=serverNow()/1000,term=DOWNTOWN.has(rec.id);
   if(mode!=="sim"&&!everLoaded)return`<div class="fav none" style="padding:0;border:0">Waiting for live data…</div>`;
   if(mode!=="sim"&&!feedHealthy())return`<div class="fav none" style="padding:0;border:0">Live feed not answering, so no times right now.</div>`;
-  const heads=term?["Arriving","Departing"]:["To Chicago","Away from Chicago"];let a,b,note;
-  if(mode!=="sim"&&trips){const p=predictionsAt(rec,nowSec);
-    a=p.filter(x=>x.inb).slice(0,per).map(x=>predRow(x,nowSec));b=p.filter(x=>!x.inb).slice(0,per).map(x=>predRow(x,nowSec));
-    note="Minutes are Metra's live predictions.";}
-  else{const g=approachingAt(rec);a=g.filter(x=>x.t.dirSign<0).slice(0,per).map(gpsRow);b=g.filter(x=>x.t.dirSign>0).slice(0,per).map(gpsRow);
-    note=mode==="sim"?"Simulated trains, not real.":"No times in the feed right now. Based on live train positions.";}
-  const sec=(h,r)=>`<div class="sdir"><span class="kick2">${h}</span>${r.length?r.join(""):`<div class="snone">Nothing on the way right now</div>`}</div>`;
-  return sec(heads[0],a)+sec(heads[1],b)+`<div class="note">${note}</div>`;
+  const d=dirRows(rec,term?per+2:per),note=d.src==="pred"?"Minutes are Metra's live predictions.":mode==="sim"?"Simulated trains, not real.":"No times in the feed right now. Based on live train positions.";
+  return dirSections(term,d)+`<div class="note">${note}</div>`;
 }
 
 /* =====================================================================
@@ -1932,6 +1943,10 @@ function renderReport(){
     :Date.now()-ck>6*60e3?`Hasn't updated since ${fmt(ck)}. It'll catch up when it's back.`:`Updated ${fmt(ck)}.`;
   html+=`<div class="bf">${status} On time means within 6 minutes of the timetable at the last stop. Starts fresh at 3 AM.</div>`;
   if(html===reportSig)return;reportSig=html;rcard.innerHTML=html;labelsDirty=true}
+function boardRows(rec){
+  if(mode!=="sim"&&!everLoaded)return{msg:"Waiting for live data…"};
+  if(mode!=="sim"&&!feedHealthy())return{msg:"Live feed not answering, so no times right now."};
+  const term=DOWNTOWN.has(rec.id),d=dirRows(rec,term?3:2);return{src:d.src,html:dirSections(term,d)}}
 function renderBoard(){
   const favs=FAV.ids.map(id=>STN.get(id)).filter(Boolean),narrow=isNarrow();
   document.body.classList.toggle("hasfav",favs.length>0);
@@ -1939,7 +1954,7 @@ function renderBoard(){
   document.body.classList.toggle("favmin",FAV.min&&!narrow);
   let src="",body;
   if(!favs.length)body=`<p class="bmsg">Click any station on the map, then ☆, to pin it here. Up to ${FAV_MAX}.</p>`;
-  else body=favs.map(rec=>{const r=arrivalRows(rec,3);if(r.src)src=src||r.src;
+  else body=favs.map(rec=>{const r=boardRows(rec);if(r.src)src=src||r.src;
     return`<div class="fav" data-id="${esc(rec.id)}"><div class="fn"><button class="go" title="Show ${esc(rec.full)} on the map">${esc(rec.label)}</button>`
       +`<button class="rm" aria-label="Remove ${esc(rec.full)} from your board" title="Remove">×</button></div>`
       +(r.html||`<div class="none">${r.msg}</div>`)+`</div>`}).join("");
@@ -1979,7 +1994,7 @@ favBtn.onclick=e=>{e.stopPropagation();if(isNarrow()){closeStationPop();if(selec
 let stripIdx=0,stripT=0;
 function tickStrip(){if(!isNarrow())return;const favs=FAV.ids.map(id=>STN.get(id)).filter(Boolean);if(!favs.length)return;
   if(++stripT>=8){stripT=0;stripIdx++}const rec=favs[stripIdx%favs.length],nowSec=serverNow()/1000;let info="";
-  if(mode!=="sim"&&feedHealthy()&&trips){const p=predictionsAt(rec,nowSec)[0];info=p?`<b>${minsTo(p.tm,nowSec)}</b> · ${LINES[p.key].code} ${p.ends?"arriving":"to "+esc(p.dest)}`:"No trains on the way"}
+  if(mode!=="sim"&&feedHealthy()&&trips){const p=predictionsAt(rec,nowSec).filter(x=>!(DOWNTOWN.has(rec.id)&&x.ends))[0];info=p?`<b>${minsTo(p.tm,nowSec)}</b> · ${LINES[p.key].code} ${p.ends?"arriving":"to "+esc(p.dest)}`:"No trains on the way"}
   else{const r=arrivalRows(rec,1);info=r.msg||r.html.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim()}
   const html=`<span class="s">★ ${esc(rec.label)}</span><span class="i">${info}</span>${favs.length>1?`<span class="n">${stripIdx%favs.length+1}/${favs.length}</span>`:""}`;
   if(fstrip.dataset.h!==html){const first=!fstrip.dataset.h;fstrip.dataset.h=html;
