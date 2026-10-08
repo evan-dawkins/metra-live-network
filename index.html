@@ -2068,26 +2068,26 @@ function tickIdle(){const busy=introOpen||$("apanel").classList.contains("on")||
 renderBoard();
 
 /* ---- the line under the title: what service looks like at this hour (Chicago time) ----
-   One of a few plain descriptions per time slot, picked at random once per visit, changing as the hour moves on. */
-const MOOD_WEEKDAY=[  // [from, to) in minutes after midnight
-  [240,330,["Early service. The first trains of the day are heading out.","Trains are just getting started for the day."]],
-  [330,390,["Early commute. Inbound trains are starting to pick up.","The morning rush is just starting to build."]],
-  [390,510,["Morning rush. Most trains are headed downtown.","Peak hour, mostly inbound to the city."]],
-  [510,570,["The morning rush is tapering off.","Last of the morning commuters heading in."]],
-  [570,690,["Late morning. Service is lighter until midday.","Off-peak hours, so trains run less often."]],
-  [690,810,["Midday. Trains run about once an hour on most lines.","Midday service, quiet and steady."]],
-  [810,930,["Early afternoon. The first outbound runs are leaving.","Quiet stretch before the evening rush."]],
-  [930,990,["The evening rush is starting to build.","Outbound trains are picking up."]],
-  [990,1110,["Evening rush. Most trains are headed out of the city.","Peak hour, mostly outbound from downtown."]],
-  [1110,1170,["The evening rush is tapering off.","Last of the rush-hour trains heading home."]],
-  [1170,1320,["Evening service. Trains are spacing out for the night.","Rush hour's over, and service is winding down."]],
-  [1320,1470,["Late-night service. The last trains are making their runs.","Last trains of the night are heading out."]]];
+   Ten or so plain descriptions per time slot, cycling every 90 s in a shuffled order and changing as the hour moves on. */
+const MOOD_WEEKDAY=[
+  [240,330,["Early service. The first trains of the day are heading out.", "Trains are just getting started for the day.", "The first runs of the day are rolling out.", "Early trains, mostly empty seats.", "Service is just waking up.", "A few early trains on the move.", "The day's first inbound trains are underway.", "The early shift is on its way in.", "Quiet platforms and the first trains of the day.", "Most lines are sending out their first run."]],
+  [330,390,["Early commute. Inbound trains are starting to pick up.", "The morning rush is just starting to build.", "Commuters are starting to head in.", "More inbound trains every few minutes.", "The early crowd is on its way downtown.", "Service is picking up for the morning.", "Rush hour is about to start.", "Inbound trains are filling in across the map.", "The early risers are on their way.", "The morning is getting busier by the minute."]],
+  [390,510,["Morning rush. Most trains are headed downtown.", "Peak hour, mostly inbound to the city.", "The busiest part of the morning.", "Trains are full and headed downtown.", "Inbound trains on every line.", "Rush hour. Lots of trains on the map.", "Downtown-bound and running often.", "The most trains you'll see all morning.", "Everyone's headed toward the Loop.", "Peak service, inbound to the four downtown stations."]],
+  [510,570,["The morning rush is tapering off.", "Last of the morning commuters heading in.", "The last big wave of commuters is heading in.", "Fewer trains now as the rush winds down.", "Morning service is easing up.", "The rush is mostly over.", "Trains are spacing out after the rush.", "The late commuters are rolling in.", "The map is thinning out after the rush.", "Most of the morning crowd is downtown now."]],
+  [570,690,["Late morning. Service is lighter until midday.", "Off-peak hours, so trains run less often.", "A calmer stretch of the morning.", "Between rushes, so there are fewer trains.", "Trains are running at a relaxed pace.", "Late-morning trains, lighter crowds.", "Quieter service until midday.", "Off-peak trains, plenty of open seats.", "A slower rhythm until lunchtime.", "Fewer trains out, longer gaps between them."]],
+  [690,810,["Midday. Trains run about once an hour on most lines.", "Midday service, quiet and steady.", "Midday trains, easy seats.", "A slow, steady part of the day.", "Lighter service around lunchtime.", "Fewer trains, roomier rides.", "The middle of the day on the rails.", "Off-peak service through the early afternoon.", "Midday runs in both directions.", "A quiet hour on most lines."]],
+  [810,930,["Early afternoon. The first outbound runs are leaving.", "Quiet stretch before the evening rush.", "Afternoon service, still on the quiet side.", "Things are about to pick up.", "A calm stretch before people head home.", "Afternoon trains, light crowds.", "The evening rush is a little way off.", "The early leavers are heading out.", "Light service before the evening push.", "A few more outbound trains each hour."]],
+  [930,990,["The evening rush is starting to build.", "Outbound trains are picking up.", "People are starting to head home.", "More trains leaving downtown now.", "Outbound service is ramping up.", "The early crowd is heading out.", "Rush hour is about to start.", "The downtown stations are getting busier.", "Outbound trains are filling in across the map.", "The workday is starting to empty out."]],
+  [990,1110,["Evening rush. Most trains are headed out of the city.", "Peak hour, mostly outbound from downtown.", "The busiest part of the evening.", "Trains are full and heading home.", "Outbound trains on every line.", "Rush hour. Lots of trains on the map.", "Leaving downtown and running often.", "The most trains you'll see all evening.", "Everyone's headed out to the suburbs.", "Peak service, outbound from the four downtown stations."]],
+  [1110,1170,["The evening rush is tapering off.", "Last of the rush-hour trains heading home.", "The last big wave of commuters is heading out.", "Fewer trains now as the rush winds down.", "Evening service is easing up.", "The rush is mostly over.", "Trains are spacing out after the rush.", "The late leavers are heading home.", "The map is thinning out after the rush.", "Most of the evening crowd is home now."]],
+  [1170,1320,["Evening service. Trains are spacing out for the night.", "Rush hour's over, and service is winding down.", "A quieter evening on the rails.", "Fewer trains, easier rides home.", "Evening trains, lighter crowds.", "Service is slowing down for the night.", "Night service is starting to settle in.", "Longer gaps between trains this evening.", "Easy evening rides on most lines.", "The night crowd is heading home."]],
+  [1320,1470,["Late-night service. The last trains are making their runs.", "Last trains of the night are heading out.", "The last few trains of the day are running.", "Late trains heading back out to the suburbs.", "Only a handful of trains left tonight.", "Last call for the trains.", "The day's final runs are underway.", "The late trains are carrying the night shift home.", "Check the departure board: the last trains go soon.", "A few trains still out, most are done."]]];   // [from, to) in minutes after midnight
 const MOOD_WEEKEND=[
-  [240,540,["Weekend morning. Trains run less often today."]],
-  [540,1080,["Weekend schedule. Trains run about every hour or two."]],
-  [1080,1320,["Weekend evening service."]],
-  [1320,1470,["Last weekend trains are heading out."]]];
-const MOOD_NIGHT=["Most trains are parked until early morning.","The system's quiet until the first trains roll out."];
+  [240,540,["Weekend morning. Trains run less often today.", "A slow weekend morning on the rails.", "Weekend trains are getting started.", "Fewer trains on weekends, so plan ahead.", "An easy weekend start.", "Weekend service is just underway.", "Quiet weekend tracks this morning.", "The first weekend runs are rolling.", "No rush today, just weekend service."]],
+  [540,1080,["Weekend schedule. Trains run about every hour or two.", "Weekend trains, roomier rides.", "Weekend service, running every so often.", "A good day for a trip downtown.", "Fewer trains today, so check the times.", "Weekend pace on the rails.", "Day trips and errands on the weekend schedule.", "Weekend trains in both directions.", "Longer gaps between trains today."]],
+  [1080,1320,["Weekend evening service.", "A weekend evening on the rails.", "Trains are bringing people home.", "Evening trains, lighter service.", "Weekend nights, fewer trains.", "Heading home from the city.", "Weekend evening, easy rides.", "The evening crowd is heading back out.", "A relaxed weekend night on the map."]],
+  [1320,1470,["Last weekend trains are heading out.", "The last weekend trains of the night.", "Final runs for the weekend night.", "Only a few trains left tonight.", "Late weekend trains heading out.", "Last call for weekend trains.", "The late weekend trains are heading home.", "The last trains of the weekend night.", "Most weekend trains are done for tonight."]]];
+const MOOD_NIGHT=["Most trains are parked until early morning.", "The system's quiet until the first trains roll out.", "No trains running right now.", "The trains are done for the night.", "Everything's parked until the morning.", "Quiet tracks until the first trains.", "Nothing moving. Back in a few hours.", "The tracks are empty overnight.", "Overnight, and the trains are resting.", "Next trains in the early morning."];
 const moodEl=$("mood"),moodPick={},dayFmt=new Intl.DateTimeFormat("en-US",{timeZone:"America/Chicago",weekday:"short"});
 let moodText="";
 function tickMood(){
@@ -2096,8 +2096,10 @@ function tickMood(){
   const late=m<30,wd=dayFmt.format(new Date(late?now-3600e3:now)),weekend=wd==="Sat"||wd==="Sun";if(late)m+=1440;
   let key="night",lines=MOOD_NIGHT;
   for(const[a,b,l]of weekend?MOOD_WEEKEND:MOOD_WEEKDAY)if(m>=a&&m<b){key=(weekend?"we":"wd")+a;lines=l;break}
-  if(!(key in moodPick))moodPick[key]=Math.floor(Math.random()*lines.length);
-  const t=lines[moodPick[key]];if(t===moodText)return;
+  if(!(key in moodPick)){const order=lines.map((_,i)=>i);for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
+    moodPick[key]={order,i:0,at:now}}
+  const P=moodPick[key];if(now-P.at>=90e3){P.i=(P.i+1)%P.order.length;P.at=now}      // a new line every 90 s, never the same twice in a row
+  const t=lines[P.order[P.i]];if(t===moodText)return;
   const first=!moodText;moodText=t;
   if(first||reduceMotion()){moodEl.textContent=t;return}
   moodEl.classList.add("swap");setTimeout(()=>{moodEl.textContent=moodText;moodEl.classList.remove("swap");labelsDirty=true},600)}
