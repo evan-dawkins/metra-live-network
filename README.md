@@ -6,6 +6,10 @@ It's made to sit on a second monitor, like a fish tank, but it works on a phone 
 
 **See it here:** https://evan-dawkins.github.io/metra-live-network/
 
+![The whole Metra network with live trains](docs/2026-10-07-overview.png)
+
+<sub>Screenshots on this page use sample data.</sub>
+
 ---
 
 ## What it does
@@ -16,6 +20,28 @@ It's made to sit on a second monitor, like a fish tank, but it works on a phone 
 - Shows Metra's service alerts.
 - Keeps a report card of how many trains finished on time today.
 - Turns into a screensaver called train of the moment (more below).
+
+New here? Click **?** next to the title any time for a quick guide.
+
+<img src="docs/2026-10-07-welcome-guide.png" alt="The welcome guide" width="640">
+
+### Tap a train
+
+See where it's headed, the station it just passed, and when it reaches the next stop and the end of the line.
+
+<img src="docs/2026-10-07-train-card.png" alt="A train's details card" width="640">
+
+### Tap a station
+
+See the next trains in each direction, with minutes until they arrive. Tap ☆ to save the station to your board on the right.
+
+<img src="docs/2026-10-07-station-times.png" alt="Upcoming trains at Wheaton" width="640">
+
+### On your phone
+
+Everything works on a phone too. Your saved stations sit in a strip at the bottom.
+
+<img src="docs/2026-10-07-phone.png" alt="The map on a phone" width="260">
 - Has light and dark mode.
 
 ## Sounds
@@ -31,11 +57,15 @@ Click the speaker button next to the title to pick one:
 
 The page remembers your pick. Press **M** to mute or unmute. Sound starts after your first click, because browsers don't allow it before that.
 
+<img src="docs/2026-10-07-sound-sonar.png" alt="The sound menu with the sonar radar sweeping" width="640">
+
 ## Report card
 
 The bar-chart button next to the title opens today's report card: the share of trains that finished on time, line by line, and the latest train of the day.
 
 A train counts as on time if it reaches its last stop within 6 minutes of the timetable. That's Metra's own rule. The card keeps counting all day, even when the page is closed, and starts fresh at 3 AM.
+
+<img src="docs/2026-10-07-report-card.png" alt="Today's report card" width="640">
 
 ## Train of the moment
 
@@ -44,6 +74,8 @@ Leave the page alone for 2 minutes and it turns into a screensaver:
 1. The camera zooms in behind a live train. The map turns so the train points up and tilts back in 3D, as if you're riding along.
 2. A card pops up with the train's details: its line, number, where it's headed, and its next stop with Metra's times.
 3. After about a minute it pulls back to the whole map, rests for a bit, then picks another train.
+
+<img src="docs/2026-10-07-train-of-the-moment.png" alt="Riding along behind a UP-W train" width="640">
 
 Move the mouse, tap or press a key and the normal map comes right back. On phones the map turns but doesn't tilt. If your device is set to reduce motion, the screensaver stays off.
 
@@ -71,6 +103,7 @@ That's it. There's nothing to install and no build step.
 | `schedule.json` | Metra's timetable, shrunk down to what the report card needs (updated nightly, automatically) |
 | `tools/build_schedule.py` | Makes `schedule.json` from Metra's timetable |
 | `.github/workflows/timetable.yml` | Tells GitHub to run that every night |
+| `docs/` | The screenshots on this page |
 | `README.md` | This page |
 
 ## Make your own copy
