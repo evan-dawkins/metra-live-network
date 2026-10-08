@@ -876,7 +876,7 @@ const defs=el("defs",{},svg);
 const pat=el("pattern",{id:"dots",width:30,height:30,patternUnits:"userSpaceOnUse"},defs);
 el("circle",{cx:15,cy:15,r:1.1,fill:"var(--dot)"},pat);
 el("rect",{x:-3000,y:-3000,width:7200,height:7500,fill:"url(#dots)"},world);
-const LAKE="M800,-3000 L800,90 L892,182 L892,560 L975,643 L1048,643 L1048,935 L1128,1015 L1128,1250 L1240,1362 L4200,1362 L4200,-3000 L800,-3000 Z";
+const LAKE="M800,-3000 L800,90 L892,182 L892,560 L975,643 L1048,643 L1048,850 L1200,1002 L1200,1300 L1262,1362 L4200,1362 L4200,-3000 L800,-3000 Z";
 /* ---- state borders (drawn under the lake, so the lake trims them at the shoreline) ----
    Schematic, not geographic: each border sits where it really falls between stations.
    Wisconsin: between Winthrop Harbor (IL) and Kenosha (WI). Indiana: east of the
@@ -887,10 +887,11 @@ const borderG=el("g",{"aria-hidden":"true"},world),STATE_LBL=[];
  const SL=(txt,x,y,dx,dy,anchor)=>{const t=el("text",{class:"stlbl","text-anchor":anchor},borderG);t.textContent=txt;STATE_LBL.push({t,x,y,dx,dy})};
  SL("WISCONSIN",430,wy,0,-9,"middle");SL("ILLINOIS",430,wy,0,19,"middle");
  const sc=STN.get("93rd St|South Chicago")||STN.get("93rd St"),ix=Math.max(1150,(sc?sc.xy[0]:1092)+50);
- el("path",{class:"border",d:`M${ix},1000 L${ix},4500`},borderG);
+ el("path",{class:"border",d:`M${ix},${850+(ix-1048)} L${ix},4500`},borderG);   // starts right at the shoreline
  SL("INDIANA",ix,1420,12,0,"start");}
 el("path",{class:"lake",d:LAKE},world);
-el("path",{class:"shore",d:"M800,-3000 L800,90 L892,182 L892,560 L975,643 L1048,643 L1048,935 L1128,1015 L1128,1250 L1240,1362 L4200,1362"},world);
+/* the shore bends out round South Shore so the South Chicago branch (71st St, then down to 93rd) stays on land */
+el("path",{class:"shore",d:"M800,-3000 L800,90 L892,182 L892,560 L975,643 L1048,643 L1048,850 L1200,1002 L1200,1300 L1262,1362 L4200,1362"},world);
 /* ---- lake water ----
    ~110 small glints on a jittered grid + ~11 ripples, generated once from a fixed seed (same water every load),
    clipped to the lake. Covers everything you can reach when zoomed all the way out. */
