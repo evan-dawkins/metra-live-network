@@ -283,7 +283,7 @@ body.idle .console,body.idle .zoom,body.idle #helpBtn,body.idle .ibtn{opacity:.3
 #card .dest b{display:block;font-size:20px;line-height:1.15;font-weight:700;margin-top:2px}
 #card .rows{border-top:1px solid var(--edge);padding:8px 12px 9px;display:grid;gap:5px}
 #card .row{display:grid;grid-template-columns:50px 1fr auto;gap:8px;align-items:baseline}
-#card .row .v{font-weight:600;min-width:0;overflow-wrap:anywhere}
+#card .row .v{font-weight:600;min-width:0;overflow-wrap:normal;word-break:normal;hyphens:none}
 #card .row .t{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px;white-space:nowrap}
 #card .row .t b{color:var(--ink);font-weight:700;font-size:14px}
 #card .ft{display:flex;align-items:center;gap:8px;padding:6px 7px 6px 12px;border-top:1px solid var(--edge);font-size:12.5px;color:var(--muted)}
@@ -1728,7 +1728,8 @@ function selectTrain(t){
   const r=cw()/ch(),tw=vb.w>FIT_W*0.55?Math.max(MIN_W,vb.w/2):vb.w;    // zoom in a step only if we're far out
   flyTo({x:t.shown[0]-tw/2,y:t.shown[1]-(tw/r)/2,w:tw,h:tw/r});labelsDirty=true}
 function stopFollowing(){if(!following)return;following=null;if(selected)renderCard()}
-function closeCard(){if(selected)selected.g.classList.remove("sel");selected=null;following=null;card.classList.remove("on");document.body.classList.remove("sheet");labelsDirty=true}
+function closeCard(){if(chase&&chase.manual&&selected===chase.t)endChase(performance.now(),false);   // back to the whole network
+  if(selected)selected.g.classList.remove("sel");selected=null;following=null;card.classList.remove("on");document.body.classList.remove("sheet");labelsDirty=true}
 function stationAt(t,i){const r=t.L.routes[t.ri];i=Math.max(0,Math.min(r.st.length-1,i));return STN.get(r.ids[i])}
 const fmtClock=sec=>new Date(sec*1000).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});
 function minsTo(sec,nowSec){const m=Math.round((sec-nowSec)/60);return m<=0?"Due":m+" min"}
@@ -1766,13 +1767,13 @@ function renderCard(){
    +`<button class="x" aria-label="Close train details">×</button></div>`
    +`<div class="dest">${dirWord?`<span class="kick2">${dirWord}</span>`:""}<b>${headline}</b></div>`
    +`<div class="rows">${nowRow}${nextRow}${finalRow}</div>`
-   +`<div class="ft">${foot}<button class="fl" aria-pressed="${following===t}">${following===t?"Following":"Follow"}</button></div>`;
+   +`<div class="ft">${foot}<button class="fl" aria-pressed="${riding(t)||(reduceMotion()&&following===t)}" title="Ride along behind this train">${riding(t)||(reduceMotion()&&following===t)?"Following":"Follow"}</button></div>`;
   card.querySelector(".x").onclick=closeCard;
-  card.querySelector(".fl").onclick=()=>{if(following===t){following=null}else{following=t}renderCard()};
+  card.querySelector(".fl").onclick=()=>{if(riding(t))endChase(performance.now(),false);else if(reduceMotion()&&following===t){following=null;renderCard()}else rideAlong(t)};
 }
 function placeCard(){
   if(!selected)return;
-  if(chase&&chase.card&&selected===chase.t&&!isNarrow()){            // riding along: the train sits at the middle, 62% down
+  if(chase&&(chase.card||chase.manual)&&selected===chase.t&&(chase.phase==="in"||chase.phase==="ride")&&!isNarrow()){            // riding along: the train sits at the middle, 62% down
     const W=cw(),H=ch(),h=card.offsetHeight,I=uiInsets();
     card.style.transform=`translate(${Math.round(W/2+70)}px,${Math.round(Math.max(I.top,Math.min(H-I.bot-h-6,H*.62-h/2)))}px)`;return}
   const sx=cw()/vb.w,sy=ch()/vb.h;
@@ -2084,11 +2085,20 @@ function pickChaseTrain(){const c=trains.filter(chaseOk);if(!c.length)return nul
   return pool[Math.floor(Math.random()*pool.length)]}
 const headingOf=t=>-Math.PI/2-t.rot*Math.PI/180;                     // the world turn that points this train up the screen
 function rideVB(t){const w=Math.max(MIN_W*1.3,FIT_W/6),h=w*ch()/cw();return{x:t.shown[0]-w/2,y:t.shown[1]-h*.62,w,h}}
-function chaseBusy(){return introOpen||drag||(selected&&!(chase&&chase.card&&selected===chase.t))||spopRec||$("apanel").classList.contains("on")||sndMenu.classList.contains("on")||document.body.classList.contains("boardsheet")}
+function chaseBusy(){return introOpen||drag||(selected&&!(chase&&(chase.card||chase.manual)&&selected===chase.t))||spopRec||$("apanel").classList.contains("on")||sndMenu.classList.contains("on")||document.body.classList.contains("boardsheet")}
 function startRide(now){const t=pickChaseTrain();if(!t){chase={phase:"rest",t0:now};return}
   chaseLast=t;camAnim=null;following=null;
   chase={phase:"in",t0:now,t,home:chase&&chase.home||fitAll(),from:{...vb},a:0,tilt:0,goTilt:canTilt()};
   document.body.classList.add("chasing")}
+// Follow on a train's card: the same ride-along view, for that train, until you close its card
+function rideAlong(t){
+  if(reduceMotion()){following=t;renderCard();return}                  // no motion: just keep it centred, flat
+  const now=performance.now(),home=chase&&chase.home||fitAll();
+  if(chase){hideChaseCard();ROT.a=0;setTilt(0)}
+  camAnim=null;following=null;
+  chase={phase:"in",t0:now,t,manual:true,home:chaseTilt?home:fitAll(),from:{...vb},a:0,tilt:0,goTilt:canTilt()};
+  document.body.classList.add("chasing");renderCard()}
+const riding=t=>!!(chase&&chase.manual&&chase.t===t&&(chase.phase==="in"||chase.phase==="ride"));
 function endChase(now,quick){if(!chase||chase.phase==="exit"||chase.phase==="out"&&!quick)return;
   if(chase.phase==="rest"&&quick){finishChase();return}
   hideChaseCard();
@@ -2115,20 +2125,22 @@ function chaseFrame(now,dt){
     if(chase.phase==="in"){const k=Math.min(1,e/CH.IN),z=easeIO(k),r=easeIO(Math.max(0,(k-.2)/.8));
       if(k===0||chase.a===0)chase.a=want;
       Object.assign(vb,lerpVB(chase.from,rideVB(t),z));ROT.a=chase.a*r;setTilt(chase.goTilt?r:0);
-      if(k>=1){chase.phase="ride";chase.t0=now;showChaseCard(t)}}
-    else{Object.assign(vb,rideVB(t));ROT.a=chase.a;if(chase.goTilt)setTilt(1);if(e>CH.RIDE)endChase(now,false)}
+      if(k>=1){chase.phase="ride";chase.t0=now;if(!chase.manual)showChaseCard(t)}}
+    else{Object.assign(vb,rideVB(t));ROT.a=chase.a;if(chase.goTilt)setTilt(1);if(e>CH.RIDE&&!chase.manual)endChase(now,false)}
   }else{                                                                // "out" (ride over) or "exit" (you moved): back to the flat, whole map
     const d=chase.phase==="exit"?CH.EXIT:CH.OUT,k=Math.min(1,e/d),z=easeIO(k);
     if(t&&!t.gone){ROT.cx=t.shown[0];ROT.cy=t.shown[1]}
     Object.assign(vb,lerpVB(chase.from,chase.home,z));ROT.a=chase.fromA*(1-z);setTilt(chase.fromTilt*(1-z));
-    if(k>=1){if(chase.phase==="exit")finishChase();else{ROT.a=0;setTilt(0);document.body.classList.remove("chasing");chase={phase:"rest",t0:now,home:chase.home};labelsDirty=true}}
+    if(k>=1){if(chase.phase==="exit"||chase.manual){const m=chase.manual;finishChase();if(m&&selected)renderCard()}else{ROT.a=0;setTilt(0);document.body.classList.remove("chasing");chase={phase:"rest",t0:now,home:chase.home};labelsDirty=true}}
   }
   const rk=ROT.a?`rotate(${(ROT.a*180/Math.PI).toFixed(3)} ${ROT.cx.toFixed(2)} ${ROT.cy.toFixed(2)})`:"";
   if(rk!==worldRotKey){worldRotKey=rk;rk?world.setAttribute("transform",rk):world.removeAttribute("transform")}
   return true}
 // any real input ends it: a pointer that actually moved, a touch, a scroll or a key
-addEventListener("pointermove",e=>{const m=!lastPtr||Math.hypot(e.clientX-lastPtr[0],e.clientY-lastPtr[1])>2;lastPtr=[e.clientX,e.clientY];if(m&&chase)endChase(performance.now(),true)},{passive:true,capture:true});
-for(const ev of["pointerdown","keydown","wheel","touchstart"])addEventListener(ev,()=>{if(chase)endChase(performance.now(),true)},{passive:true,capture:true});
+addEventListener("pointermove",e=>{const m=!lastPtr||Math.hypot(e.clientX-lastPtr[0],e.clientY-lastPtr[1])>2;lastPtr=[e.clientX,e.clientY];if(m&&chase&&!chase.manual)endChase(performance.now(),true)},{passive:true,capture:true});
+for(const ev of["pointerdown","keydown","wheel","touchstart"])addEventListener(ev,e=>{if(!chase)return;
+  if(chase.manual&&(ev==="keydown"||!(e.target.closest&&e.target.closest("#stage"))))return;   // following: only grabbing the map itself ends it
+  endChase(performance.now(),true)},{passive:true,capture:true});
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&chase)finishChase()});
 
 /* =====================================================================

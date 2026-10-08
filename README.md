@@ -27,7 +27,7 @@ New here? Click **?** next to the title any time for a quick guide.
 
 ### Tap a train
 
-See where it's headed, the station it just passed, and when it reaches the next stop and the end of the line.
+See where it's headed, the station it just passed, and when it reaches the next stop and the end of the line. Press **Follow** to ride along behind it, like train of the moment. Close the card to go back to the whole map.
 
 <img src="docs/2026-10-07-train-card.png" alt="A train's details card" width="640">
 
