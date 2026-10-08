@@ -1995,7 +1995,7 @@ function renderReport(){
 function boardRows(rec){
   if(mode!=="sim"&&!everLoaded)return{msg:"Waiting for live data…"};
   if(mode!=="sim"&&!feedHealthy())return{msg:"Live feed not answering, so no times right now."};
-  const term=DOWNTOWN.has(rec.id),d=dirRows(rec,term?4:2);return{src:d.src==="board"?"pred":d.src,html:dirSections(term,d)}}
+  const term=DOWNTOWN.has(rec.id),d=dirRows(rec,term?3:2);return{src:d.src==="board"?"pred":d.src,html:dirSections(term,d)}}
 function renderBoard(){
   const favs=FAV.ids.map(id=>STN.get(id)).filter(Boolean),narrow=isNarrow();
   document.body.classList.toggle("hasfav",favs.length>0);

@@ -35,7 +35,16 @@ See where it's headed, the station it just passed, and when it reaches the next 
 
 See the next trains in each direction, **To Chicago** and **Away from Chicago**, with minutes until they arrive. Both directions always show, even when one has nothing coming yet.
 
-At the downtown stations (Ogilvie, Union Station, LaSalle St and Millennium), you only see trains **leaving**, since that's what you'd catch there.
+### Downtown departure boards
+
+Tap a downtown station (Ogilvie, Union Station, LaSalle St or Millennium) to see a departure board, like the screen on the station wall. It lists every train leaving in the next 3 hours, with a countdown, even if the train hasn't shown up yet.
+
+Each train has a status:
+- **On time** or **7 min late:** Metra has a live time for it.
+- **Canceled:** Metra canceled it.
+- **Scheduled:** no live news yet, so the time is from the timetable.
+
+<img src="docs/2026-10-07-departure-board.png" alt="Ogilvie's departure board" width="640">
 
 Tap ☆ to save a station to your board on the right. The board shows the same thing for each saved station.
 
@@ -47,9 +56,9 @@ Everything works on a phone too. Your saved stations sit in a strip at the botto
 
 <img src="docs/2026-10-07-phone.png" alt="The map on a phone" width="260">
 - Has light and dark mode.
-- Can show cute little trains instead of arrows. Click the train button next to the title, or press **C**. Their wheels turn while they're moving.
+- Can show little trains instead of arrows. Click the train button next to the title, or press **C**. They look like model trains seen from above, in their line's color, and sway gently while they're moving.
 
-<img src="docs/2026-10-07-cute-trains.png" alt="A cute UP-NW train rolling past Cumberland" width="420">
+<img src="docs/2026-10-07-cute-trains.png" alt="A UP-NW train seen from above, rolling past Cumberland" width="420">
 
 ## Sounds
 
@@ -97,7 +106,7 @@ If Metra doesn't give a time for something, the map says so instead of inventing
 1. Metra publishes live train data, but in a format your browser can't read directly.
 2. A tiny program on Cloudflare (`worker.js`) grabs that data, turns it into something readable, and keeps your Metra key secret.
 3. The page (`index.html`) asks that program for the data every 30 seconds and draws the map.
-4. For the report card, the Cloudflare program also checks every 2 minutes on its own. It compares each finished train with Metra's timetable, which GitHub downloads fresh every night.
+4. For the report card, the Cloudflare program also checks every 2 minutes on its own. It compares each finished train with Metra's timetable, which GitHub downloads fresh every night. The downtown departure boards use that same timetable.
 
 That's it. There's nothing to install and no build step.
 
@@ -107,7 +116,7 @@ That's it. There's nothing to install and no build step.
 |---|---|
 | `index.html` | The whole map, in one file |
 | `worker.js` | The Cloudflare program that fetches Metra's data (a backup copy; Cloudflare runs the real one) |
-| `schedule.json` | Metra's timetable, shrunk down to what the report card needs (updated nightly, automatically) |
+| `schedule.json` | Metra's timetable, shrunk down to what the report card and departure boards need (updated nightly, automatically) |
 | `tools/build_schedule.py` | Makes `schedule.json` from Metra's timetable |
 | `.github/workflows/timetable.yml` | Tells GitHub to run that every night |
 | `docs/` | The screenshots on this page |
