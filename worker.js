@@ -254,6 +254,7 @@ function parseAlerts(buf) {
 const SCHEDULE_URL = "https://evan-dawkins.github.io/metra-live-network/schedule.json";
 const ON_TIME_SEC = 359, TZ = "America/Chicago", REPORT_KEY = "report";
 const ARRIVED_KM = 0.45;                                    // GPS this close to the last station = arrived
+const REPORT_V = 2;                                         // bump to start today's tallies over after a scoring fix
 
 let chicagoFmt = null;                                      // built once: making these is slow
 function chicago(ms) {
@@ -298,7 +299,8 @@ function freshReport(day) {
 //   vehicles: parsed vehicle positions, or null if that feed failed
 function stepReport(st, updates, vehicles, sched, nowMs) {
   const nowSec = Math.floor(nowMs / 1000), day = reportDay(nowMs);
-  if (!st || st.day !== day) { const prev = st && st.checked; st = freshReport(day); st.checked = prev || 0; }
+  if (!st || st.day !== day || st.v !== REPORT_V) { const prev = st && st.checked; st = freshReport(day); st.checked = prev || 0; }
+  st.v = REPORT_V;
   st.gps ||= 0; st.downMs ||= 0;
   // honesty: time the times feed was down, or checks didn't happen (Cloudflare skipped runs)
   if (st.checked) {
@@ -334,7 +336,7 @@ function stepReport(st, updates, vehicles, sched, nowMs) {
     if (!a) continue;
     const last = tu.stops.filter(x => x.stop_id === sched.trips[id][0] && x.schedule_relationship !== 1).pop();
     const p = last && ((last.arrival && last.arrival.time) || (last.departure && last.departure.time));
-    if (p) a.p = p;
+    if (p) { a.p = p; if (p - nowSec > 300) a.far = 1; }      // still well on its way per Metra's times
     a.seen = nowSec;
   }
 
@@ -347,7 +349,11 @@ function stepReport(st, updates, vehicles, sched, nowMs) {
     if (!a) continue;
     a.seen = nowSec;
     const at = stops[sc[0]], fix = +v.updated_at || 0;
-    if (at && fix && nowSec - fix < 600 && km(v.latitude, v.longitude, at[0], at[1]) < ARRIVED_KM) {
+    if (!at || !fix || nowSec - fix > 600) continue;
+    const near = km(v.latitude, v.longitude, at[0], at[1]) < ARRIVED_KM;
+    if (!near) { a.far = 1; continue; }
+    // only a train we saw on its way counts by GPS; one already parked at its last stop arrived before we were watching
+    if (a.far) {
       // pulled in: Metra's last prediction if it had one and it's close to the GPS time, otherwise the GPS time
       const usePred = a.p && Math.abs(a.p - fix) < 240;
       finish(id, a, usePred ? a.p : fix, !usePred);
