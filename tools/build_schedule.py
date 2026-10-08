@@ -34,6 +34,8 @@ def main():
     names = set(z.namelist())
 
     last = {}                                    # trip_id -> (stop_sequence, stop_id, arrival_time)
+    HUBS = {"OTC", "CUS", "LSS", "MILLENNIUM"}   # downtown stations: the page shows a departure board for these
+    hub = []                                     # (trip_id, stop_id, departure_time, stop_sequence)
     for r in rows(z, "stop_times.txt"):
         tid, seq = r.get("trip_id", ""), r.get("stop_sequence", "")
         if not seq.isdigit():
@@ -42,6 +44,9 @@ def main():
         t = (r.get("arrival_time") or r.get("departure_time") or "").strip()
         if not tid or not t:
             continue
+        if r.get("stop_id", "") in HUBS:
+            d = (r.get("departure_time") or t).strip()
+            hub.append((tid, r["stop_id"], d if len(d) == 8 else d.zfill(8), seq))
         if tid not in last or seq > last[tid][0]:
             last[tid] = (seq, r.get("stop_id", ""), t if len(t) == 8 else t.zfill(8))
 
@@ -50,6 +55,7 @@ def main():
     today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-6))).date()
     days = [today + datetime.timedelta(d) for d in range(-1, 8)]
     active = set()
+    runs = {}                                    # service_id -> set of dates (YYYYMMDD) in the window
     if "calendar.txt" in names:
         wk = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
         for r in rows(z, "calendar.txt"):
@@ -57,15 +63,23 @@ def main():
                 a = datetime.datetime.strptime(r["start_date"], "%Y%m%d").date(); b = datetime.datetime.strptime(r["end_date"], "%Y%m%d").date()
             except (KeyError, ValueError):
                 continue
-            if any(a <= d <= b and r.get(wk[d.weekday()]) == "1" for d in days):
-                active.add(r.get("service_id", ""))
+            ds = {d.strftime("%Y%m%d") for d in days if a <= d <= b and r.get(wk[d.weekday()]) == "1"}
+            if ds:
+                active.add(r.get("service_id", "")); runs.setdefault(r.get("service_id", ""), set()).update(ds)
     if "calendar_dates.txt" in names:
         want = {d.strftime("%Y%m%d") for d in days}
         for r in rows(z, "calendar_dates.txt"):
+            sid = r.get("service_id", "")
             if r.get("date") in want and r.get("exception_type") == "1":
-                active.add(r.get("service_id", ""))
-    if active and "trips.txt" in names:
-        keep = {r.get("trip_id", "") for r in rows(z, "trips.txt") if r.get("service_id") in active}
+                active.add(sid); runs.setdefault(sid, set()).add(r["date"])
+            elif r.get("date") in want and r.get("exception_type") == "2":
+                runs.setdefault(sid, set()).discard(r["date"])
+    trip_info = {}                               # trip_id -> (route_id, service_id)
+    if "trips.txt" in names:
+        for r in rows(z, "trips.txt"):
+            trip_info[r.get("trip_id", "")] = (r.get("route_id", ""), r.get("service_id", ""))
+    if active and trip_info:
+        keep = {tid for tid, (_, sid) in trip_info.items() if sid in active}
         before = len(last)
         last = {k: v for k, v in last.items() if k in keep}
         print(f"Running this week: {len(last)} of {before} trips")
@@ -89,8 +103,21 @@ def main():
                     pass
     print(f"Last-stop locations: {len(stops)} of {len(ends)}")
 
+    # departure board for the downtown stations: every train leaving one this week (not ones ending there)
+    deps = []
+    for tid, stop, t, seq in hub:
+        if tid not in last or last[tid][0] == seq or tid not in trip_info:
+            continue
+        route, sid = trip_info[tid]
+        if sid in runs and runs[sid]:
+            deps.append([stop, t, tid, route, sid])
+    deps.sort(key=lambda d: (d[0], d[1]))
+    used = {d[4] for d in deps}
+    print(f"Downtown departures: {len(deps)} (services {len(used)})")
+
     out = {"source": SOURCE, "version": version,
-           "trips": {tid: [stop, t] for tid, (_, stop, t) in sorted(last.items())}, "stops": stops}
+           "trips": {tid: [stop, t] for tid, (_, stop, t) in sorted(last.items())}, "stops": stops,
+           "deps": deps, "svc": {sid: sorted(runs[sid]) for sid in sorted(used)}}
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(out, f, separators=(",", ":"))
     print(f"{OUT}: {len(out['trips'])} trips, version {version or 'unknown'}")
