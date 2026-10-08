@@ -2,7 +2,7 @@
 
 A live map of every Metra train in Chicagoland, moving in real time on a clean diagram of the whole system.
 
-It's built to sit on a second monitor like an aquarium: calm, quiet, and fun to glance at. It works on a phone too.
+It's built to sit on a second monitor like an aquarium: calm, quiet, and fun to glance at. It works just as well on your phone.
 
 **Open it:** https://evan-dawkins.github.io/metra-live-network/
 
@@ -24,6 +24,7 @@ It's built to sit on a second monitor like an aquarium: calm, quiet, and fun to 
 - **Ambient sound:** brown noise, water, or a sonar radar.
 - **Little trains** instead of arrows, if you like.
 - **Light and dark mode.**
+- **Made for phones too,** upright or sideways.
 
 New here? Click **?** next to the title any time for a quick guide.
 
@@ -132,11 +133,34 @@ Click the **train button** next to the title, or press **C**, to swap the arrows
 
 <img src="docs/2026-10-08-little-trains.png" alt="A UP-NW train seen from above, rolling past Cumberland" width="420">
 
-## Light mode and phones
+## On your phone
+
+Open the same link on your phone. Everything works there, sized for one hand:
+
+1. **The map fills the screen.** Drag with one finger, pinch to zoom.
+2. **Cards slide up from the bottom.** The map moves so the train you picked stays in view above its card, even when you press **Follow**.
+3. **The ticker** gets its own slim line under the buttons.
+4. **Your stations** sit in a strip at the bottom. Tap it to see them all.
+5. **Lines:** swipe the bottom bar sideways to pick one.
+
+<p>
+<img src="docs/2026-10-08-phone-map.png" alt="The map on a phone" width="200">
+<img src="docs/2026-10-08-phone-follow.png" alt="Following a train on a phone, with its card below" width="200">
+<img src="docs/2026-10-08-phone-departures.png" alt="Ogilvie's departure board on a phone" width="200">
+<img src="docs/2026-10-08-phone-stations.png" alt="Your stations on a phone" width="200">
+</p>
+
+**Turn your phone sideways** and cards move to the left side, so the map stays open on the right.
+
+<img src="docs/2026-10-08-phone-sideways.png" alt="Following a train with the phone turned sideways" width="640">
+
+**Tip:** add it to your home screen (Safari: Share → **Add to Home Screen**; Chrome: ⋮ → **Add to Home screen**) and it opens like an app.
+
+## Light mode
+
+Click the **sun** button, or press **T**.
 
 <img src="docs/2026-10-08-overview-light.png" alt="The map in light mode" width="640">
-
-<img src="docs/2026-10-08-phone.png" alt="The map on a phone" width="260">
 
 ## Is the data real?
 
