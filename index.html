@@ -1710,7 +1710,11 @@ function renderCard(){
   card.querySelector(".fl").onclick=()=>{if(following===t){following=null}else{following=t}renderCard()};
 }
 function placeCard(){
-  if(!selected)return;const sx=cw()/vb.w,sy=ch()/vb.h;
+  if(!selected)return;
+  if(chase&&chase.card&&selected===chase.t&&!isNarrow()){            // riding along: the train sits at the middle, 62% down
+    const W=cw(),H=ch(),h=card.offsetHeight,I=uiInsets();
+    card.style.transform=`translate(${Math.round(W/2+70)}px,${Math.round(Math.max(I.top,Math.min(H-I.bot-h-6,H*.62-h/2)))}px)`;return}
+  const sx=cw()/vb.w,sy=ch()/vb.h;
   const px=(selected.shown[0]-vb.x)*sx,py=(selected.shown[1]-vb.y)*sy;
   const w=card.offsetWidth,h=card.offsetHeight,W=cw(),H=ch();
   let x=px+22,y=py-h/2;if(x+w>W-12)x=px-22-w;
@@ -1962,15 +1966,20 @@ function pickChaseTrain(){const c=trains.filter(chaseOk);if(!c.length)return nul
   return pool[Math.floor(Math.random()*pool.length)]}
 const headingOf=t=>-Math.PI/2-t.rot*Math.PI/180;                     // the world turn that points this train up the screen
 function rideVB(t){const w=Math.max(MIN_W*1.3,FIT_W/6),h=w*ch()/cw();return{x:t.shown[0]-w/2,y:t.shown[1]-h*.62,w,h}}
-function chaseBusy(){return introOpen||drag||selected||spopRec||$("apanel").classList.contains("on")||sndMenu.classList.contains("on")||document.body.classList.contains("boardsheet")}
+function chaseBusy(){return introOpen||drag||(selected&&!(chase&&chase.card&&selected===chase.t))||spopRec||$("apanel").classList.contains("on")||sndMenu.classList.contains("on")||document.body.classList.contains("boardsheet")}
 function startRide(now){const t=pickChaseTrain();if(!t){chase={phase:"rest",t0:now};return}
   chaseLast=t;camAnim=null;following=null;
   chase={phase:"in",t0:now,t,home:chase&&chase.home||fitAll(),from:{...vb},a:0,tilt:0,goTilt:canTilt()};
   document.body.classList.add("chasing")}
 function endChase(now,quick){if(!chase||chase.phase==="exit"||chase.phase==="out"&&!quick)return;
   if(chase.phase==="rest"&&quick){finishChase();return}
+  hideChaseCard();
   chase={...chase,phase:quick?"exit":"out",t0:now,from:{...vb},fromA:ROT.a,fromTilt:chaseTilt}}
-function finishChase(){chase=null;ROT.a=0;setTilt(0);document.body.classList.remove("chasing");labelsDirty=true}
+function showChaseCard(t){if(selected&&selected!==t)return;                     // you picked a train yourself: leave it alone
+  selected=t;t.g.classList.add("sel");card.classList.add("on");if(isNarrow())document.body.classList.add("sheet");
+  chase.card=true;renderCard();placeCard();labelsDirty=true}
+function hideChaseCard(){if(!chase||!chase.card)return;chase.card=false;if(selected===chase.t)closeCard()}
+function finishChase(){hideChaseCard();chase=null;ROT.a=0;setTilt(0);document.body.classList.remove("chasing");labelsDirty=true}
 function setTilt(k){chaseTilt=k;
   if(k<=.001){if(stage.classList.contains("tilt")){stage.classList.remove("tilt");stage.style.transform="";horizon.style.opacity=0}return}
   stage.classList.add("tilt");stage.style.transform=`perspective(1000px) rotateX(${(34*k).toFixed(2)}deg) scale(${(1+.55*k).toFixed(3)})`;horizon.style.opacity=k.toFixed(3)}
@@ -1988,7 +1997,7 @@ function chaseFrame(now,dt){
     if(chase.phase==="in"){const k=Math.min(1,e/CH.IN),z=easeIO(k),r=easeIO(Math.max(0,(k-.2)/.8));
       if(k===0||chase.a===0)chase.a=want;
       Object.assign(vb,lerpVB(chase.from,rideVB(t),z));ROT.a=chase.a*r;setTilt(chase.goTilt?r:0);
-      if(k>=1)chase.phase="ride",chase.t0=now}
+      if(k>=1){chase.phase="ride";chase.t0=now;showChaseCard(t)}}
     else{Object.assign(vb,rideVB(t));ROT.a=chase.a;if(chase.goTilt)setTilt(1);if(e>CH.RIDE)endChase(now,false)}
   }else{                                                                // "out" (ride over) or "exit" (you moved): back to the flat, whole map
     const d=chase.phase==="exit"?CH.EXIT:CH.OUT,k=Math.min(1,e/d),z=easeIO(k);
