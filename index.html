@@ -256,7 +256,7 @@ body.focused .focusnote{display:block}
 /* sonar: a radar over the Loop, one turn per data refresh */
 .radar{opacity:0;transition:opacity .6s ease;pointer-events:none}
 body.sonar .radar{opacity:1}
-.radar .wedge{fill:var(--ink)}
+.radar .trail{opacity:.16}
 .radar .beam{stroke:var(--ink);stroke-width:1.6px;vector-effect:non-scaling-stroke;opacity:.4}
 @media (prefers-reduced-motion:reduce){.radar .sweep{display:none}}
 
@@ -1086,13 +1086,25 @@ applySound();
 const RADAR_C=(()=>{const at=id=>{const r=STN.get(id);if(!r||!r.inst.length)return null;let x=0,y=0;for(const q of r.inst){x+=q.xy[0];y+=q.xy[1]}return[x/r.inst.length,y/r.inst.length]};
   const u=at("Union Station"),m=at("Millennium"),l=at("LaSalle St");if(!u||!m||!l)return null;
   return[(u[0]+m[0])/2,l[1]-.25*(l[1]-u[1])]})();   // the open area between Union and Millennium, just north of LaSalle St
-let RADAR_R=340,radarSweep=null,radarRot="";
+let RADAR_R=340,radarSweep=null,radarRot="",radarTrail=null;
+// the fading trail behind the beam: one smooth sweep painted once into an image (no slices, so no seams)
+function paintRadarTrail(){
+  if(!radarTrail)return;
+  const n=512,c=document.createElement("canvas");c.width=c.height=n;const g=c.getContext("2d");
+  if(!g||!g.createConicGradient){radarTrail.remove();radarTrail=null;return}
+  const SPAN=40*Math.PI/180,f=SPAN/(2*Math.PI);                 // 40° behind the beam, which points straight up
+  const cg=g.createConicGradient(-Math.PI/2-SPAN,n/2,n/2);
+  for(let k=0;k<=12;k++)cg.addColorStop(f*k/12,`rgba(255,255,255,${Math.pow(k/12,1.6).toFixed(4)})`);   // eases out behind the beam
+  cg.addColorStop(Math.min(1,f+.0005),"rgba(255,255,255,0)");cg.addColorStop(1,"rgba(255,255,255,0)");
+  g.fillStyle=cg;g.beginPath();g.arc(n/2,n/2,n/2,0,2*Math.PI);g.fill();
+  g.globalCompositeOperation="source-in";g.fillStyle=getComputedStyle(document.documentElement).getPropertyValue("--ink").trim()||"#fff";g.fillRect(0,0,n,n);
+  radarTrail.setAttribute("href",c.toDataURL())}
+new MutationObserver(()=>paintRadarTrail()).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
 if(RADAR_C){let m=0;for(const r of STN.values())for(const q of r.inst)m=Math.max(m,Math.hypot(q.xy[0]-RADAR_C[0],q.xy[1]-RADAR_C[1]));RADAR_R=Math.ceil(m*2.6)}   // reaches past every edge of the page
 if(RADAR_C){const g=el("g",{class:"radar",transform:`translate(${RADAR_C[0].toFixed(1)},${RADAR_C[1].toFixed(1)})`});world.insertBefore(g,trackG);
   radarSweep=el("g",{class:"sweep"},g);
-  const N=24,SPAN=40;                                                         // a fading 50° trail behind the beam
-  for(let i=0;i<N;i++){const a0=(-SPAN+SPAN*i/N-90)*Math.PI/180,a1=(-SPAN+SPAN*(i+1)/N-90+.4)*Math.PI/180;
-    el("path",{class:"wedge",d:`M0 0L${(RADAR_R*Math.cos(a0)).toFixed(1)} ${(RADAR_R*Math.sin(a0)).toFixed(1)}A${RADAR_R} ${RADAR_R} 0 0 1 ${(RADAR_R*Math.cos(a1)).toFixed(1)} ${(RADAR_R*Math.sin(a1)).toFixed(1)}Z`,"fill-opacity":(.09*Math.pow((i+1)/N,2)).toFixed(3)},radarSweep)}
+  radarTrail=el("image",{class:"trail",x:-RADAR_R,y:-RADAR_R,width:2*RADAR_R,height:2*RADAR_R,preserveAspectRatio:"none"},radarSweep);
+  paintRadarTrail();
   el("path",{class:"beam",d:`M0 0V${-RADAR_R}`},radarSweep)}
 let radarLand=0,radarCycle=30000,radarPh=0,radarT=0,radarFresh=true;
 function radarLanded(t0){const t=performance.now();radarLand=t;radarCycle=Math.max(POLL,Math.min(POLL+15000,POLL+(t-t0)))}   // a turn = the wait plus the fetch
