@@ -109,7 +109,7 @@ Leave the page alone for 2 minutes and it turns into a screensaver:
 3. A soft voice **checks in** on the train.
 4. After about a minute it pulls back to the whole map, rests, then picks another train.
 
-Move the mouse, tap or press a key and the normal map comes right back. On phones the map turns but doesn't tilt. If your device is set to reduce motion, the screensaver stays off.
+It keeps going until you close the train's card with **×**. Moving the mouse, scrolling or pressing keys won't stop it. On phones the map turns but doesn't tilt. If your device is set to reduce motion, the screensaver stays off.
 
 <img src="docs/2026-10-08-train-of-the-moment.png" alt="Riding along behind a train" width="640">
 
