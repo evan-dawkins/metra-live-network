@@ -7,6 +7,13 @@
 //   /?peek=1   -> a readable sample of what Metra actually sends (for checking the data)
 //   /?report=1 -> the same, plus today's report card (needs the REPORT KV binding and the 2-minute Cron Trigger)
 //   /?runreport=1 -> run the report card check now and show the result (troubleshooting; at most once a minute)
+//
+// CTABot (L trains) shares this Worker. Secret required: CTA_API_KEY. These never touch the Metra code above.
+//   /cta/positions          -> every L train's live position, grouped by line
+//   /cta/arrivals?mapid=N   -> arrival predictions for up to 4 stations (comma-separated station ids)
+//   /cta/follow?run=N       -> the next stops of one train (by run number)
+//   /cta/alerts             -> current CTA service alerts for the L (no key needed)
+//   /cta/peek               -> a readable check of all of the above, safe to share (no key in it)
 
 function readVarint(b, p) { let r = 0, s = 1, byte; do { byte = b[p]; r += (byte & 0x7f) * s; s *= 128; p++; } while (byte & 0x80); return [r, p]; }
 // int32/int64 fields (like a delay) can be negative; those need exact 64-bit maths
@@ -430,10 +437,174 @@ async function getFeed(name, headers) {
   }
 }
 
+/* ============================================ CTA (CTABot) ============================================ */
+// CTA's Train Tracker answers in plain JSON (outputType=JSON), so no decoding by hand here.
+// The key travels in CTA's query string: it is never put into an error message or a response.
+const CTA_TT = "https://lapi.transitchicago.com/api/1.0/";
+const CTA_ALERTS = "https://www.transitchicago.com/api/1.0/alerts.aspx";
+// CTA's route codes -> the line names the dashboard uses (shared naming with MetraBot's route_id idea)
+const CTA_LINES = { red: "Red", blue: "Blue", brn: "Brown", g: "Green", org: "Orange", p: "Purple", pink: "Pink", y: "Yellow" };
+const CTA_TTL_MS = 25e3;                                    // CTA updates about every 30 s; one answer is shared by every viewer
+const CTA_ALERT_TTL_MS = 120e3;
+const ctaMemo = new Map();                                  // cache key -> { at, data } or { at, err }
+
+// CTA times are Chicago wall-clock with no zone ("2026-10-09T17:15:20"): turn them into real epoch ms.
+function ctaTime(s) {
+  const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)/.exec(s || "");
+  if (!m) return null;
+  const guess = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+  return guess - offsetMs(guess);
+}
+const asList = x => x == null ? [] : Array.isArray(x) ? x : [x];   // CTA sends a lone item as an object, not a list
+const flag = x => x === "1" || x === 1 || x === true;
+const num = x => { const n = parseFloat(x); return Number.isFinite(n) ? n : null; };
+
+async function ctaGet(cacheKey, ttl, url) {
+  const now = Date.now(), m = ctaMemo.get(cacheKey);
+  if (m && m.data && now - m.at < ttl) return m.data;
+  if (m && m.err && now - m.at < 15e3) throw m.err;         // don't hammer CTA right after a failure
+  for (let attempt = 1; ; attempt++) {
+    let r = null, err = null;
+    try { r = await fetch(url, { headers: { "User-Agent": "ctabot/1.0 (+https://github.com/evan-dawkins/ctabot)", Accept: "application/json" } }); }
+    catch (e) { err = new Error("Couldn't reach CTA"); }
+    if (r && r.ok) {
+      let data; try { data = await r.json(); } catch (e) { err = new Error("CTA sent something that isn't JSON"); }
+      if (data) { ctaMemo.set(cacheKey, { at: Date.now(), data }); return data; }
+    }
+    const e2 = err || new Error(`CTA returned ${r.status}`);
+    if ((r && r.status < 500 && r.status !== 429) || attempt >= 2) { ctaMemo.set(cacheKey, { at: Date.now(), err: e2 }); throw e2; }
+    await new Promise(res => setTimeout(res, 1500));
+  }
+}
+// Train Tracker reports its own problems inside a 200 answer (errCd other than 0)
+function ctaCheck(data) {
+  const tt = data && data.ctatt;
+  if (!tt) throw new Error("Unexpected answer from CTA");
+  if (tt.errCd && tt.errCd !== "0") throw new Error(`CTA error ${tt.errCd}: ${tt.errNm || "unknown"}`);
+  return tt;
+}
+
+function ctaTrain(t, line) {                                // one position or prediction row -> the dashboard's shape
+  return {
+    line, run: String(t.rn || ""), dest: t.destNm || "", dest_id: t.destSt || "", dir: t.trDr || "",
+    lat: num(t.lat), lon: num(t.lon), heading: num(t.heading),
+    next_sta_id: t.nextStaId || t.staId || "", next_stop_id: t.nextStpId || t.stpId || "", next_sta: t.nextStaNm || t.staNm || "",
+    predicted_at: ctaTime(t.prdt), arrives_at: ctaTime(t.arrT),
+    approaching: flag(t.isApp), delayed: flag(t.isDly), scheduled: flag(t.isSch), fault: flag(t.isFlt)
+  };
+}
+
+async function ctaPositions(key) {
+  const tt = ctaCheck(await ctaGet("positions", CTA_TTL_MS,
+    `${CTA_TT}ttpositions.aspx?key=${encodeURIComponent(key)}&rt=${Object.keys(CTA_LINES).join(",")}&outputType=JSON`));
+  const lines = {}; let trains = 0;
+  for (const name of Object.values(CTA_LINES)) lines[name] = [];
+  for (const r of asList(tt.route)) {
+    const line = CTA_LINES[String(r["@name"] || "").toLowerCase()];
+    if (!line) continue;
+    for (const t of asList(r.train)) {
+      const tr = ctaTrain(t, line);
+      if (tr.lat == null || tr.lon == null || (tr.lat === 0 && tr.lon === 0)) continue;   // no real GPS fix: don't show it
+      lines[line].push(tr); trains++;
+    }
+  }
+  return { feed_time: ctaTime(tt.tmst), trains, lines };
+}
+
+async function ctaArrivals(key, mapids) {
+  const out = {};
+  await Promise.all(mapids.map(async id => {
+    try {
+      const tt = ctaCheck(await ctaGet("arr:" + id, CTA_TTL_MS, `${CTA_TT}ttarrivals.aspx?key=${encodeURIComponent(key)}&mapid=${id}&outputType=JSON`));
+      out[id] = { feed_time: ctaTime(tt.tmst), etas: asList(tt.eta).map(e => {
+        const t = ctaTrain(e, CTA_LINES[String(e.rt || "").toLowerCase()] || e.rt || "");
+        t.station = e.staNm || ""; t.platform = e.stpDe || ""; return t;
+      }).sort((a, b) => (a.arrives_at || 0) - (b.arrives_at || 0)) };
+    } catch (e) { out[id] = { error: String(e.message || e) }; }
+  }));
+  return out;
+}
+
+async function ctaFollow(key, run) {
+  const tt = ctaCheck(await ctaGet("run:" + run, CTA_TTL_MS, `${CTA_TT}ttfollow.aspx?key=${encodeURIComponent(key)}&runnumber=${run}&outputType=JSON`));
+  const pos = tt.position || {};
+  const etas = asList(tt.eta).map(e => {
+    const t = ctaTrain(e, CTA_LINES[String(e.rt || "").toLowerCase()] || e.rt || ""); t.station = e.staNm || ""; t.platform = e.stpDe || ""; return t;
+  });
+  return { feed_time: ctaTime(tt.tmst), run, lat: num(pos.lat), lon: num(pos.lon), heading: num(pos.heading), stops: etas };
+}
+
+async function ctaAlerts() {
+  const data = await ctaGet("alerts", CTA_ALERT_TTL_MS, `${CTA_ALERTS}?activeonly=true&outputType=JSON`);
+  const root = data && data.CTAAlerts;
+  if (!root) throw new Error("Unexpected answer from CTA alerts");
+  if (root.ErrorCode && root.ErrorCode !== "0") throw new Error(`CTA alerts error ${root.ErrorCode}: ${root.ErrorMessage || "unknown"}`);
+  const out = [];
+  for (const a of asList(root.Alert)) {
+    const lines = new Set(), stations = new Set();
+    for (const s of asList(a.ImpactedService && a.ImpactedService.Service)) {
+      if (s.ServiceType === "R") { const l = CTA_LINES[String(s.ServiceId || "").toLowerCase()]; if (l) lines.add(l); }
+      if (s.ServiceType === "T") stations.add(String(s.ServiceId || ""));   // a train station
+    }
+    if (!lines.size && !stations.size) continue;            // bus-only alerts aren't ours
+    const full = a.FullDescription && (a.FullDescription["#cdata-section"] ?? a.FullDescription);
+    out.push({
+      id: String(a.AlertId || ""), header: plainText(a.Headline), short: plainText(a.ShortDescription),
+      description: plainText(typeof full === "string" ? full : ""),
+      severity: num(a.SeverityScore), impact: a.Impact || "", major: flag(a.MajorAlert),
+      start: ctaTime(a.EventStart), end: ctaTime(a.EventEnd),
+      lines: [...lines], stations: [...stations],
+      url: /^https?:\/\//i.test(String(a.AlertURL && (a.AlertURL["#cdata-section"] ?? a.AlertURL) || "")) ? String(a.AlertURL["#cdata-section"] ?? a.AlertURL) : ""
+    });
+  }
+  return out.sort((x, y) => (y.severity || 0) - (x.severity || 0));
+}
+
+async function handleCta(url, env) {
+  const send = (obj, status = 200) => new Response(JSON.stringify(obj, null, url.pathname === "/cta/peek" ? 2 : 0), { status, headers: JSON_HEADERS });
+  const key = env.CTA_API_KEY;
+  const needKey = () => { if (!key) throw new Error("CTA_API_KEY isn't set on the Worker"); };
+  const err = e => String(e && e.message || e);
+  try {
+    switch (url.pathname.replace(/\/+$/, "")) {
+      case "/cta/positions": needKey(); return send({ ...(await ctaPositions(key)), fetched_at: Date.now() });
+      case "/cta/arrivals": {
+        needKey();
+        const ids = [...new Set((url.searchParams.get("mapid") || "").split(",").map(s => s.trim()).filter(Boolean))];
+        if (!ids.length || ids.length > 4 || ids.some(s => !/^4\d{4}$/.test(s))) return send({ error: "Give 1 to 4 station ids, like ?mapid=40380" }, 400);
+        return send({ stations: await ctaArrivals(key, ids), fetched_at: Date.now() });
+      }
+      case "/cta/follow": {
+        needKey();
+        const run = url.searchParams.get("run") || "";
+        if (!/^\d{1,4}$/.test(run)) return send({ error: "Give a run number, like ?run=812" }, 400);
+        return send({ ...(await ctaFollow(key, run)), fetched_at: Date.now() });
+      }
+      case "/cta/alerts": return send({ alerts: await ctaAlerts(), fetched_at: Date.now() });
+      case "/cta/peek": {
+        const peek = { what: "Sample of CTA's live data, as CTABot sees it. Safe to share: no key in here.", checked_at: new Date().toISOString(), key_set: !!key };
+        const [pos, arr, alr] = await Promise.allSettled([key ? ctaPositions(key) : Promise.reject(new Error("CTA_API_KEY isn't set")),
+                                                          key ? ctaArrivals(key, ["40380"]) : Promise.reject(new Error("CTA_API_KEY isn't set")), ctaAlerts()]);
+        if (pos.status === "fulfilled") {
+          const v = pos.value, per = {}; for (const [l, ts] of Object.entries(v.lines)) per[l] = ts.length;
+          peek.positions = { feed_time: v.feed_time && new Date(v.feed_time).toISOString(), trains: v.trains, per_line: per,
+                             sample: Object.values(v.lines).flat().slice(0, 6) };
+        } else peek.positions = { error: err(pos.reason) };
+        if (arr.status === "fulfilled") { const c = arr.value["40380"]; peek.arrivals_clark_lake = c.error ? c : { count: c.etas.length, sample: c.etas.slice(0, 4) }; }
+        else peek.arrivals_clark_lake = { error: err(arr.reason) };
+        peek.alerts = alr.status === "fulfilled" ? { count: alr.value.length, headlines: alr.value.slice(0, 8).map(a => `${a.lines.join("/") || "station"}: ${a.header}`) } : { error: err(alr.reason) };
+        return send(peek);
+      }
+    }
+    return send({ error: "Unknown CTA path. Try /cta/positions, /cta/arrivals?mapid=40380, /cta/follow?run=812, /cta/alerts or /cta/peek" }, 404);
+  } catch (e) { return send({ error: err(e), fetched_at: Date.now() }, 502); }
+}
+
 export default {
   async fetch(request, env) {
-    const headers = { Authorization: `Bearer ${env.METRA_API_TOKEN}` };
     const url = new URL(request.url);
+    if (url.pathname.startsWith("/cta/") || url.pathname === "/cta") return handleCta(url, env);   // CTABot: never reaches the Metra code
+    const headers = { Authorization: `Bearer ${env.METRA_API_TOKEN}` };
     /* ---- runreport: run the 2-minute report check right now and show the result (for troubleshooting) ---- */
     if (url.searchParams.has("runreport")) {
       try {
