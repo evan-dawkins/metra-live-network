@@ -24,7 +24,7 @@ def main():
     if len(sys.argv) > 1:
         data = open(sys.argv[1], "rb").read()
     else:
-        req = urllib.request.Request(SOURCE, headers={"User-Agent": "metra-live-network timetable builder"})
+        req = urllib.request.Request(SOURCE, headers={"User-Agent": "metrabot timetable builder"})
         with urllib.request.urlopen(req, timeout=120) as r:
             print(f"Downloaded {r.geturl()} -> HTTP {r.status}, {r.headers.get('Content-Type')}")
             data = r.read()

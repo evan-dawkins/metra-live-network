@@ -1,10 +1,10 @@
-# Metra Live Map
+# MetraBot
 
-A live map of every Metra train in Chicagoland, moving in real time on a clean diagram of the whole system.
+MetraBot is a live map of every Metra train in Chicagoland, moving in real time on a clean diagram of the whole system.
 
 It's built to sit on a second monitor like an aquarium: calm, quiet, and fun to glance at. It works just as well on your phone.
 
-**Open it:** https://evan-dawkins.github.io/metra-live-network/
+**Open it:** https://evan-dawkins.github.io/metrabot/
 
 ![The whole Metra network with live trains](docs/2026-10-08-overview.png)
 

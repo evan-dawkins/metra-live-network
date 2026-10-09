@@ -1,4 +1,4 @@
-// Metra live relay: fetches Metra's GTFS-realtime feeds, decodes the protobuf by hand,
+// MetraBot relay: fetches Metra's GTFS-realtime feeds, decodes the protobuf by hand,
 // and returns clean JSON to the dashboard. Each feed is fetched at most about every 25 s and shared by all viewers.
 // Secret required: METRA_API_TOKEN
 //
@@ -251,7 +251,7 @@ function parseAlerts(buf) {
 // own GPS reaches its last station, timed by that GPS report.
 // Honesty: minutes when the times feed was down (or checks didn't run) are added up and shown.
 // The day's tallies live in one KV key and start fresh at 3 AM Chicago time.
-const SCHEDULE_URL = "https://evan-dawkins.github.io/metra-live-network/schedule.json";
+const SCHEDULE_URL = "https://evan-dawkins.github.io/metrabot/schedule.json";
 const ON_TIME_SEC = 359, TZ = "America/Chicago", REPORT_KEY = "report";
 const ARRIVED_KM = 0.45;                                    // GPS this close to the last station = arrived
 const REPORT_V = 2;                                         // bump to start today's tallies over after a scoring fix
@@ -405,7 +405,7 @@ const JSON_HEADERS = { "content-type": "application/json", "access-control-allow
 // A blip (5xx/429/network) gets one retry after 1.5 s.
 const FEED_TTL_MS = 25e3, REFUSED_WAIT_MS = 120e3;
 // say who's asking, like a browser does (some security filters turn away requests with no name)
-const ID_HEADERS = { "User-Agent": "metra-live-network/1.0 (+https://github.com/evan-dawkins/metra-live-network)", "Accept": "application/x-protobuf, */*" };
+const ID_HEADERS = { "User-Agent": "metrabot/1.0 (+https://github.com/evan-dawkins/metrabot)", "Accept": "application/x-protobuf, */*" };
 const feedMemo = new Map();                                 // name -> { at, buf } or { at, err, until }
 async function getFeed(name, headers) {
   const now = Date.now(), m = feedMemo.get(name);
