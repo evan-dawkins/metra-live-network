@@ -207,8 +207,6 @@ There's nothing to install and no build step.
 | `schedule.json` | Metra's timetable, trimmed down to what the map needs. Updated nightly, automatically |
 | `tools/build_schedule.py` | Builds `schedule.json` from Metra's timetable |
 | `.github/workflows/timetable.yml` | Tells GitHub to run that every night |
-| `data/geo.json` | The real Lake Michigan shoreline and state lines (US Census Bureau TIGER/Line). The page bends them to fit the diagram |
-| `tools/build_geo.py` | Downloads those and writes them into `index.html` (run by `.github/workflows/geo.yml`) |
 | `voice/` | The recorded check-in voice, packed into a few audio files |
 | `tools/build_voice.py` | Records the check-in voice (only needed if you change what it says) |
 | `docs/` | The screenshots on this page |
