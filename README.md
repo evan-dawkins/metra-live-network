@@ -102,7 +102,7 @@ If live data was missing for a while, the card says so, and trains timed by GPS 
 
 ## Train of the moment
 
-Leave the page alone for 2 minutes and it turns into a screensaver:
+Leave the page alone for 2 minutes (20 seconds on a phone) and it turns into a screensaver:
 
 1. The camera swoops in behind a live train, turning and tilting the map so you're riding along.
 2. The train's card pops up with where it's headed and its next stop.

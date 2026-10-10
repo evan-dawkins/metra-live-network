@@ -653,7 +653,7 @@ button{touch-action:manipulation}
     <li><span class="ic" style="--c:#B26BE0"><svg viewBox="0 0 24 24"><path d="M4 7h16" stroke="#3FAE5A"/><path d="M4 12h16" stroke="#F2BE2E"/><path d="M4 17h16" stroke="#EE87AE"/></svg></span><span><b>Pick a line</b><small>Tap one at the bottom to see just it.</small></span></li>
     <li><span class="ic" style="--c:#47C6E4"><svg viewBox="0 0 24 24"><path class="f" d="M4 9h3.5L12 5v14l-4.5-4H4z"/><path d="M15.5 9.5c1 .7 1.5 1.5 1.5 2.5s-.5 1.8-1.5 2.5M18 7c1.8 1.3 2.7 3 2.7 5s-.9 3.7-2.7 5"/></svg></span><span><b>Pick a sound</b><small>Tap the speaker by the title.</small></span></li>
     <li><span class="ic" style="--c:#93C94F"><svg viewBox="0 0 24 24"><path d="M6 19v-6M12 19V6M18 19v-9"/></svg></span><span><b>Check the report card</b><small>Tap the chart button to see how many trains ran on time today.</small></span></li>
-    <li><span class="ic" style="--c:#EE87AE"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path class="f" d="M17 12l4-3v6z"/><path d="M12 7.5V12l3 2"/></svg></span><span><b>Leave it be</b><small>After 2 minutes it rides along with live trains. Close the train's card (×) to stop.</small></span></li>
+    <li><span class="ic" style="--c:#EE87AE"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path class="f" d="M17 12l4-3v6z"/><path d="M12 7.5V12l3 2"/></svg></span><span><b>Leave it be</b><small>After 2 minutes (20 seconds on a phone) it rides along with live trains. Close the train's card (×) to stop.</small></span></li>
   </ul>
   <div class="foot">
     <button class="go">Start watching</button>
@@ -2232,7 +2232,7 @@ tickMood();
 
 /* =====================================================================
    TRAIN OF THE MOMENT (screensaver)
-   After 2 minutes with no input, the camera picks a live train, swings in behind it (the map turns
+   After 2 minutes with no input (20 seconds on a phone), the camera picks a live train, swings in behind it (the map turns
    so the train points up the screen, and tilts back in 3D), rides along for about a minute, then
    pulls back to the whole map and rests before picking another. Any mouse move, touch, scroll or
    key brings the normal map straight back. Only trains with a known direction and fresh GPS are
@@ -2241,7 +2241,7 @@ tickMood();
    ===================================================================== */
 const ROT={a:0,cx:0,cy:0};                 // world turn (radians) around a pivot; the label layout uses it too
 function rotPt(p){if(!ROT.a)return p;const c=Math.cos(ROT.a),s=Math.sin(ROT.a),dx=p[0]-ROT.cx,dy=p[1]-ROT.cy;return[ROT.cx+dx*c-dy*s,ROT.cy+dx*s+dy*c]}
-const CH={IDLE:120000,IN:3200,RIDE:60000,OUT:2800,REST:25000,EXIT:550};
+const CH={IDLE:120000,IN:3200,RIDE:60000,OUT:2800,REST:25000,EXIT:550},PHONE_IDLE=20000,isTouch=()=>matchMedia("(pointer:coarse)").matches;let wakeLock=null;function wakeOn(){if(wakeLock||!navigator.wakeLock||!isTouch())return;wakeLock="wait";navigator.wakeLock.request("screen").then(l=>{if(chase&&wakeLock==="wait")wakeLock=l;else l.release()}).catch(()=>{wakeLock=null})}function wakeOff(){const l=wakeLock;wakeLock=null;if(l&&l!=="wait")l.release().catch(()=>{})}   // phones lock themselves within a minute: start sooner, and keep the screen on while it rides
 let chase=null,chaseLast=null,chaseTilt=0,worldRotKey="",lastPtr=null;
 const horizon=$("horizon");
 const canTilt=()=>!isNarrow()&&(navigator.hardwareConcurrency||8)>4;
@@ -2259,7 +2259,7 @@ function rideVB(t){const W=cw(),H=ch(),w=Math.max(MIN_W*1.3,FIT_W/6),h=w*H/W,k=w
     else{const sh=card.classList.contains("on")&&card.offsetHeight?card.offsetHeight:220,bot=66+sh;sy=I.top+Math.max(40,H-I.top-bot)*.62}}
   return{x:t.shown[0]-sx*k,y:t.shown[1]-sy*k,w,h}}
 function chaseBusy(){return introOpen||(selected&&!(chase&&(chase.card||chase.manual)&&selected===chase.t))||spopRec||document.body.classList.contains("boardsheet")}
-function startRide(now){const t=pickChaseTrain();if(!t){chase={phase:"rest",t0:now};return}
+function startRide(now){const t=pickChaseTrain();if(!t){chase={phase:"rest",t0:now};return}wakeOn();
   chaseLast=t;camAnim=null;following=null;ciPrep(t);
   chase={phase:"in",t0:now,t,home:chase&&chase.home||fitAll(),from:{...vb},a:0,tilt:0,goTilt:canTilt()};
   document.body.classList.add("chasing")}
@@ -2283,13 +2283,13 @@ function showChaseCard(t){if(selected&&selected!==t)return;                     
 // the card of the train being ridden right now: only its × closes it
 function rideCard(){return!!(chase&&(chase.manual||chase.card)&&selected===chase.t&&(chase.phase==="in"||chase.phase==="ride"))}
 function hideChaseCard(){if(!chase||!chase.card)return;chase.card=false;if(selected===chase.t)closeCard()}
-function finishChase(){hideChaseCard();ciStop();chase=null;ROT.a=0;setTilt(0);worldRotKey="";world.removeAttribute("transform");document.body.classList.remove("chasing");labelsDirty=true}
+function finishChase(){hideChaseCard();ciStop();wakeOff();chase=null;ROT.a=0;setTilt(0);worldRotKey="";world.removeAttribute("transform");document.body.classList.remove("chasing");labelsDirty=true}
 function setTilt(k){chaseTilt=k;
   if(k<=.001){if(stage.classList.contains("tilt")){stage.classList.remove("tilt");stage.style.transform="";horizon.style.opacity=0}return}
   stage.classList.add("tilt");stage.style.transform=`perspective(1000px) rotateX(${(34*k).toFixed(2)}deg) scale(${(1+.55*k).toFixed(3)})`;horizon.style.opacity=k.toFixed(3)}
 function chaseFrame(now,dt){
   if(!chase){
-    if(Date.now()-lastInput>CH.IDLE&&!chaseBusy()&&!reduceMotion()&&!document.hidden&&trains.length)startRide(now);
+    if(Date.now()-lastInput>(isTouch()?PHONE_IDLE:CH.IDLE)&&!chaseBusy()&&!reduceMotion()&&!document.hidden&&trains.length)startRide(now);
     return false}
   const e=now-chase.t0,t=chase.t;
   if(chase.phase==="rest"){if(e>CH.REST&&!chaseBusy()){chase.home=fitAll();startRide(now)}return false}
