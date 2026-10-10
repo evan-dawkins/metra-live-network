@@ -560,8 +560,19 @@ async function ctaAlerts() {
   return out.sort((x, y) => (y.severity || 0) - (x.severity || 0));
 }
 
-async function handleCta(url, env) {
-  const send = (obj, status = 200) => new Response(JSON.stringify(obj, null, url.pathname === "/cta/peek" ? 2 : 0), { status, headers: JSON_HEADERS });
+// Only CTABot's own page may read these answers in a browser (stops other websites spending the CTA key's daily
+// limit through this relay). Opening the page as a local file sends Origin "null"; localhost is for testing.
+const CTA_ORIGINS = [/^https:\/\/evan-dawkins\.github\.io$/, /^null$/, /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/];
+function ctaHeaders(request) {
+  const origin = request && request.headers.get("Origin");
+  const h = { "content-type": "application/json", "Cache-Control": "no-store", Vary: "Origin" };
+  if (origin && CTA_ORIGINS.some(re => re.test(origin))) h["access-control-allow-origin"] = origin;
+  return h;
+}
+
+async function handleCta(url, env, request) {
+  const headers = ctaHeaders(request);
+  const send = (obj, status = 200) => new Response(JSON.stringify(obj, null, url.pathname === "/cta/peek" ? 2 : 0), { status, headers });
   const key = env.CTA_API_KEY;
   const needKey = () => { if (!key) throw new Error("CTA_API_KEY isn't set on the Worker"); };
   const err = e => String(e && e.message || e);
@@ -603,7 +614,7 @@ async function handleCta(url, env) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/cta/") || url.pathname === "/cta") return handleCta(url, env);   // CTABot: never reaches the Metra code
+    if (url.pathname.startsWith("/cta/") || url.pathname === "/cta") return handleCta(url, env, request);   // CTABot: never reaches the Metra code
     const headers = { Authorization: `Bearer ${env.METRA_API_TOKEN}` };
     /* ---- runreport: run the 2-minute report check right now and show the result (for troubleshooting) ---- */
     if (url.searchParams.has("runreport")) {
