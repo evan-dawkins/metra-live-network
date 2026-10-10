@@ -2283,7 +2283,7 @@ function showChaseCard(t){if(selected&&selected!==t)return;                     
 // the card of the train being ridden right now: only its × closes it
 function rideCard(){return!!(chase&&(chase.manual||chase.card)&&selected===chase.t&&(chase.phase==="in"||chase.phase==="ride"))}
 function hideChaseCard(){if(!chase||!chase.card)return;chase.card=false;if(selected===chase.t)closeCard()}
-function finishChase(){hideChaseCard();ciStop();chase=null;ROT.a=0;setTilt(0);document.body.classList.remove("chasing");labelsDirty=true}
+function finishChase(){hideChaseCard();ciStop();chase=null;ROT.a=0;setTilt(0);worldRotKey="";world.removeAttribute("transform");document.body.classList.remove("chasing");labelsDirty=true}
 function setTilt(k){chaseTilt=k;
   if(k<=.001){if(stage.classList.contains("tilt")){stage.classList.remove("tilt");stage.style.transform="";horizon.style.opacity=0}return}
   stage.classList.add("tilt");stage.style.transform=`perspective(1000px) rotateX(${(34*k).toFixed(2)}deg) scale(${(1+.55*k).toFixed(3)})`;horizon.style.opacity=k.toFixed(3)}
@@ -2315,7 +2315,7 @@ function chaseFrame(now,dt){
   if(rk!==worldRotKey){worldRotKey=rk;rk?world.setAttribute("transform",rk):world.removeAttribute("transform")}
   return true}
 // mouse moves, clicks, scrolls and keys never end a ride: only closing the train's card (×) does
-document.addEventListener("visibilitychange",()=>{if(document.hidden&&chase)finishChase()});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden||!chase)return;const home=chase.phase!=="rest"&&chase.home;finishChase();if(home){Object.assign(vb,home);applyVB();updateMarkers()}});   // leaving mid-ride: straighten the map and zoom back out
 
 /* =====================================================================
    TRAIN CHECK-INS
